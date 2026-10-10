@@ -5,9 +5,7 @@ import { Icons } from './icons.js';
 // State Store
 const state = {
   lang: localStorage.getItem('powerup_lang') || 'en',
-  isLangOpen: false,
   tab: 'status', // 'status' | 'features' | 'manage'
-  manageSubView: 'list', // 'list' | 'notes' | 'guide'
   auth: {
     loggedIn: false,
     key: '',
@@ -169,7 +167,6 @@ function render() {
 
   let html = '';
 
-  // Ambient red glow background
   html += `
     <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#050505]">
       <div class="absolute left-1/2 top-[-14%] h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-[#e50914]/[0.06] blur-[120px]"></div>
@@ -186,7 +183,8 @@ function render() {
   }
 
   if (!state.auth.loggedIn) {
-    html += renderKeyGate();
+    // إذا لم يكن مسجلاً للدخول، يتم ترك العرض لـ index.html الأساسي لتفادي أي تداخل
+    return;
   } else {
     html += renderDashboard();
   }
@@ -195,63 +193,22 @@ function render() {
   attachEvents();
 }
 
-function renderKeyGate() {
-  return `
-    <main class="relative flex min-h-dvh flex-col items-center justify-center px-6">
-      <div class="card flex w-full max-w-xs flex-col items-center gap-5 p-7 border-[#1f1f1f] bg-[#0a0a0a] shadow-[0_10px_40px_rgba(0,0,0,0.8)] animate-rise">
-        
-        <!-- شعار POWER UP المضيء المطابق لواجهة تسجيل الدخول -->
-        <div style="font-size: 32px; font-weight: 900; color: #ffffff; line-height: 0.95; letter-spacing: 1.5px; text-align: center; text-transform: uppercase; filter: drop-shadow(0 0 12px rgba(229, 9, 20, 0.4));">
-          POWER
-          <span style="color: #e50914; display: block; font-size: 36px;">UP</span>
-        </div>
-
-        <p class="text-[11px] text-center text-[#8a8a8e] uppercase tracking-[0.15em] -mt-2">No account, no password. Your key only.</p>
-        
-        <form id="key-form" class="flex w-full flex-col gap-3">
-          <input 
-            id="key-input"
-            type="text"
-            placeholder="${CONFIG.KEY_PLACEHOLDER}" 
-            spellcheck="false" 
-            autocomplete="off" 
-            autofocus 
-            class="input text-center tracking-[0.1em] bg-black border-[#222] text-white focus:border-[#e50914]" 
-            value="${state.keyInput}"
-          />
-          
-          ${state.error ? `<p class="text-center text-xs text-[#e50914] animate-rise">${state.error}</p>` : ''}
-          
-          <button type="submit" class="btn w-full uppercase tracking-[0.15em] bg-[#e50914] text-white hover:bg-[#c40711]" ${state.loading ? 'disabled' : ''}>
-            ${state.loading ? 'Authenticating...' : 'Unlock'}
-          </button>
-        </form>
-      </div>
-      
-      <p class="mt-6 text-center text-[11px] text-[#777]">No key? Contact your seller.<br/>Time starts upon connection.</p>
-    </main>
-  `;
-}
-
 function renderDashboard() {
   const me = state.auth.me;
 
   return `
     <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6">
       
-      <!-- Header -->
+      <!-- Header مع زر اللغة الأحادي النظيف -->
       <div class="flex items-center justify-between gap-3 px-1 py-4">
         <div class="flex min-w-0 items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-white">
           <span class="h-2 w-2 shrink-0 rounded-full bg-[#10b981]"></span>
           ${me.status}
         </div>
         
-        <div class="relative shrink-0">
-          <button id="lang-btn" aria-label="language" class="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#121216] border border-[#222] text-[#ccc] hover:text-white transition-colors">
-            ${Icons.languages(16)}
-          </button>
-          ${state.isLangOpen ? renderLangDropdown() : ''}
-        </div>
+        <button id="single-lang-btn" class="bg-[#121212] text-[#dddddd] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-xs font-bold transition-colors hover:bg-[#1f1f1f]">
+          ${state.lang === 'ar' ? 'English' : 'عربي'}
+        </button>
       </div>
 
       <div class="flex flex-1 flex-col animate-rise">
@@ -265,34 +222,18 @@ function renderDashboard() {
   `;
 }
 
-function renderLangDropdown() {
-  const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }, { code: 'th', name: 'ไทย' }];
-  return `
-    <div id="lang-overlay" class="fixed inset-0 z-40 cursor-default"></div>
-    <div class="absolute right-0 top-11 z-50 flex min-w-[156px] flex-col overflow-hidden rounded-[14px] border border-[#222] bg-[#121216] p-1 shadow-2xl animate-rise">
-      ${languages.map(l => `
-        <button data-lang="${l.code}" class="lang-select-btn flex items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left text-sm font-semibold text-[#ccc] hover:bg-white/[0.05] hover:text-white transition-colors">
-          <span>${l.name}</span>${l.code === state.lang ? Icons.check(14, 'text-[#e50914]') : ''}
-        </button>
-      `).join('')}
-    </div>
-  `;
-}
-
 function renderStatusTab(me) {
   const expiresCountdown = formatCountdown(me.expires_at);
 
   return `
     <div class="flex flex-1 flex-col items-center justify-between gap-8 py-4">
       <div class="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        
-        <!-- الشعار المضيء في اللوحة الداخلية -->
         <div style="font-size: 42px; font-weight: 900; color: #ffffff; line-height: 0.95; letter-spacing: 2px; text-transform: uppercase; filter: drop-shadow(0 0 16px rgba(229, 9, 20, 0.5));">
           POWER
           <span style="color: #e50914; display: block; font-size: 48px;">UP</span>
         </div>
 
-        <div class="mt-4 flex flex-col gap-2 bg-[#0a0a0a] border border-[#1f1f1f] p-4 rounded-2xl w-full">
+        <div class="mt-4 flex flex-col gap-2 bg-[#0a0a0a] border border-[#1f1f1f] p-4 rounded-2xl w-full text-left">
           <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">HWID: <span class="font-bold text-white">${me.bound_hwid || 'Not locked'}</span></p>
           <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">Device: <span class="font-bold text-white">${me.device_model || 'Active'}</span></p>
           <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">Expires: <span id="countdown-display" class="font-bold text-[#e50914]">${expiresCountdown}</span></p>
@@ -312,7 +253,6 @@ function renderFeaturesTab(me) {
   const f = me.features;
   const marker = f.marker || { enabled: true, type: 'Power' };
   const aimpoint = f.aimpoint || { enabled: false };
-  const aimLag = f.aimLag || { enabled: false, onFire: false, onScope: false };
   const gloo = f.gloo || { enabled: false, yawDeg: 180 };
   const fastRevive = f.fastRevive || { enabled: false };
 
@@ -320,7 +260,6 @@ function renderFeaturesTab(me) {
     <div class="flex flex-col gap-4">
       <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">${t('features_title')}</div>
 
-      <!-- Marker Card -->
       <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Marker Type</span>
@@ -336,7 +275,6 @@ function renderFeaturesTab(me) {
         </div>
       </div>
 
-      <!-- Aimpoint Card -->
       <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Aimpoint (Neck Lock)</span>
@@ -347,7 +285,6 @@ function renderFeaturesTab(me) {
         <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_aimpoint')}</p>
       </div>
 
-      <!-- Gloo Wall Card -->
       <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Gloo Rotation</span>
@@ -358,7 +295,6 @@ function renderFeaturesTab(me) {
         <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_gloo')}</p>
       </div>
 
-      <!-- Fast Revive Card -->
       <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Fast Revive</span>
@@ -418,6 +354,15 @@ function renderBottomNav() {
 }
 
 function attachEvents() {
+  const langBtn = document.getElementById('single-lang-btn');
+  if (langBtn) {
+    langBtn.addEventListener('click', () => {
+      state.lang = state.lang === 'en' ? 'ar' : 'en';
+      localStorage.setItem('powerup_lang', state.lang);
+      render();
+    });
+  }
+
   const keyInput = document.getElementById('key-input');
   if (keyInput) {
     keyInput.addEventListener('input', (e) => {
@@ -451,29 +396,19 @@ function attachEvents() {
           state.auth.key = val;
           if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
           localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me, features: state.auth.me.features }));
+          render();
         } else {
           state.error = data.error || 'Invalid key';
+          state.loading = false;
+          render();
         }
       } catch (err) {
         state.error = 'Network error';
-      } finally {
         state.loading = false;
         render();
       }
     });
   }
-
-  const langBtn = document.getElementById('lang-btn');
-  if (langBtn) langBtn.addEventListener('click', () => { state.isLangOpen = !state.isLangOpen; render(); });
-
-  document.querySelectorAll('.lang-select-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.lang = btn.getAttribute('data-lang');
-      localStorage.setItem('powerup_lang', state.lang);
-      state.isLangOpen = false;
-      render();
-    });
-  });
 
   document.querySelectorAll('[data-nav-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
