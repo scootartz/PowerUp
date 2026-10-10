@@ -34,7 +34,7 @@ if (savedSession) {
 }
 
 function formatCountdown(targetIso) {
-  if (!targetIso) return '3649d 23h';
+  if (!targetIso) return '3649d 18h';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
@@ -63,7 +63,7 @@ function renderDashboard() {
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- الشريط العلوي: الحالة تتغير ديناميكياً -->
+      <!-- الشريط العلوي للحالة -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: ${statusColor};">
           <span style="height: 8px; width: 8px; border-radius: 50%; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
@@ -98,7 +98,7 @@ function renderStatusTab(me) {
 
       <!-- خانة المفتاح في المنتصف تماماً -->
       <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-R2ZW-PEY6-7BKB'}</span>
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-WKZF-LMXY-EH3Y'}</span>
         <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
           ${Icons.copy(16)}
         </button>
@@ -106,12 +106,12 @@ function renderStatusTab(me) {
 
       <div style="width: 100%; max-width: 320px;">
         <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
-          ${state.lang === 'ar' ? 'إضافة اشتراك' : 'ADD SUBSCRIPTION'}
+          ADD SUBSCRIPTION
         </button>
       </div>
 
       <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
-        ${state.lang === 'ar' ? 'ينتهي خلال' : 'EXPIRES IN'} <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
+        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
       </p>
     </div>
   `;
@@ -126,11 +126,13 @@ function renderFeaturesTab(me) {
   const fastRevive = f.fastRevive || { enabled: false };
 
   const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
+  const isMarkerDisabled = !marker.enabled;
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">${state.lang === 'ar' ? 'الميزات' : 'FEATURES'}</div>
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">FEATURES</div>
 
+      <!-- Marker Type مع تفعيل/تعطيل الخيارات السفلية بناءً على الزر العلوي -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">MARKER TYPE</span>
@@ -138,13 +140,16 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: ${isMarkerDisabled ? '0.35' : '1'}; pointer-events: ${isMarkerDisabled ? 'none' : 'auto'}; transition: opacity 0.2s;">
           ${markerTypes.map(type => `
             <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
           `).join('')}
         </div>
       </div>
 
+      <!-- Aimpoint -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
@@ -152,8 +157,10 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
       </div>
 
+      <!-- Aim Lag -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
@@ -161,8 +168,10 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
       </div>
 
+      <!-- Gloo Rotation -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
@@ -170,8 +179,10 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
       </div>
 
+      <!-- Fast Revive -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
@@ -179,6 +190,7 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
@@ -191,7 +203,7 @@ function renderManageTab() {
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">${state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT'}</div>
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">MANAGEMENT</div>
       
       <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
         Reset Device Lock (Unbind HWID)
@@ -219,7 +231,7 @@ function renderManageTab() {
       </a>
       
       <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
-        ${state.lang === 'ar' ? 'تسجيل الخروج' : 'Log out'}
+        Log out
       </button>
     </div>
   `;
@@ -264,15 +276,23 @@ function attachDashboardEvents() {
     });
   }
 
-  // زر ADD SUBSCRIPTION: يفتح تطبيق Happ VPN، يحول الحالة إلى CONNECTED فوراً، ويحفظها
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
     happBtn.addEventListener('click', () => {
       state.isConnected = true;
       localStorage.setItem('powerup_vpn_connected', 'true');
 
-      const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
-      const deepLink = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+      const configObj = {
+        version: "1.7",
+        client: "POWER UP",
+        key: state.auth.key,
+        routing: {
+          rules: [{ domain_suffix: ["freefiremobile.com", "garena.com"], outbound: "powerup-tunnel" }]
+        }
+      };
+
+      const encodedData = btoa(JSON.stringify(configObj));
+      const deepLink = `happ://import?data=${encodeURIComponent(encodedData)}`;
       
       window.location.href = deepLink;
       renderDashboard();
