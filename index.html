@@ -40,32 +40,6 @@
       padding: 20px;
     }
 
-    /* زر الترجمة الدائري العلوي في واجهة تسجيل الدخول */
-    .top-lang-container {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-    }
-
-    .circle-lang-btn {
-      background: #0a0a0a;
-      border: 1px solid #1f1f1f;
-      border-radius: 50%;
-      width: 42px;
-      height: 42px;
-      color: #cccccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-      transition: transform 0.1s;
-    }
-
-    .circle-lang-btn:active {
-      transform: scale(0.95);
-    }
-
     #app {
       width: 100%;
       max-width: 400px;
@@ -184,20 +158,13 @@
 </head>
 <body>
 
-  <!-- زر الترجمة الدائري العلوي في واجهة تسجيل الدخول -->
-  <div class="top-lang-container">
-    <button id="login-lang-btn" class="circle-lang-btn" title="Change Language">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-    </button>
-  </div>
-
   <div id="app">
     <div class="main-card">
       <img src="logo.png" alt="POWER UP" class="brand-logo-img" />
 
-      <p class="sub-description" id="login-desc">No account, no password. Your key only.</p>
+      <p class="sub-description">No account, no password. Your key only.</p>
 
-      <span class="input-label" id="login-label">Access Key</span>
+      <span class="input-label">Access Key</span>
       <div class="input-wrapper">
         <button type="button" class="paste-btn" id="paste-btn">Paste</button>
         <input 
@@ -212,7 +179,7 @@
 
       <button type="button" class="btn-unlock" id="unlock-btn">Unlock</button>
 
-      <p class="footer-text" id="login-footer">
+      <p class="footer-text">
         No key? Contact your seller.<br>
         <span style="font-size: 10px; color: #444;">Time starts upon connection.</span>
       </p>
@@ -222,39 +189,6 @@
   <script type="module" src="src/app.js"></script>
 
   <script>
-    // ترجمة خفيفة لواجهة تسجيل الدخول قبل تحميل app.js بالكامل
-    const loginLangBtn = document.getElementById('login-lang-btn');
-    let currentLang = localStorage.getItem('powerup_lang') || 'en';
-
-    function updateLoginTexts() {
-      const desc = document.getElementById('login-desc');
-      const label = document.getElementById('login-label');
-      const unlock = document.getElementById('unlock-btn');
-      const paste = document.getElementById('paste-btn');
-      
-      if (currentLang === 'ar') {
-        if(desc) desc.textContent = 'لا حساب ولا كلمة مرور. مفتاحك فقط.';
-        if(label) label.textContent = 'مفتاح الدخول';
-        if(unlock) unlock.textContent = 'فتح';
-        if(paste) paste.textContent = 'لصق';
-      } else {
-        if(desc) desc.textContent = 'No account, no password. Your key only.';
-        if(label) label.textContent = 'Access Key';
-        if(unlock) unlock.textContent = 'Unlock';
-        if(paste) paste.textContent = 'Paste';
-      }
-    }
-
-    updateLoginTexts();
-
-    if (loginLangBtn) {
-      loginLangBtn.addEventListener('click', () => {
-        currentLang = currentLang === 'en' ? 'ar' : 'en';
-        localStorage.setItem('powerup_lang', currentLang);
-        updateLoginTexts();
-      });
-    }
-
     document.getElementById('paste-btn').addEventListener('click', async () => {
       try {
         const text = await navigator.clipboard.readText();
