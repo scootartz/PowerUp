@@ -38,16 +38,14 @@ function t(key) {
 }
 
 function formatCountdown(targetIso) {
-  if (!targetIso) return '3649d 23h';
+  if (!targetIso) return '59m 9s';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
-  const days = Math.floor(sec / 86400);
-  const hours = Math.floor((sec % 86400) / 3600);
-  const mins = Math.floor((sec % 3600) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  const mins = Math.floor(sec / 60);
+  const remSec = sec % 60;
+  if (mins > 0) return `${mins}m ${remSec}s`;
+  return `${remSec}s`;
 }
 
 function renderDashboard() {
@@ -66,7 +64,7 @@ function renderDashboard() {
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #10b981;">
           <span style="height: 8px; width: 8px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981;"></span>
-          ${state.lang === 'ar' ? 'متصل' : 'CONNECTED'}
+          ${state.lang === 'ar' ? 'نشط' : 'ACTIVE'}
         </div>
         
         <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);" title="Change Language">
@@ -92,25 +90,20 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;">
+      <img src="logo.png" alt="POWER UP" style="max-width: 190px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-R2ZW-PEY6-7BKB'}</span>
-        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
-          ${Icons.copy(16)}
-        </button>
+      <div style="font-size: 11px; color: #888888; font-family: monospace; line-height: 1.6;">
+        HWID ${me.bound_hwid || '4231E308EED0D44B'}<br>
+        DEVICE ${me.device_model || '23049PCD8G'}<br>
+        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
       </div>
 
-      <div style="width: 100%; max-width: 320px;">
+      <div style="width: 100%; max-width: 320px; margin-top: 10px;">
         <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
-          ${state.lang === 'ar' ? 'إضافة اشتراك' : 'ADD SUBSCRIPTION'}
+          ↗ ADD TO HAPP
         </button>
       </div>
-
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -4px;">
-        ${state.lang === 'ar' ? 'ينتهي خلال' : 'EXPIRES IN'} <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
-      </p>
     </div>
   `;
 }
@@ -118,10 +111,7 @@ function renderStatusTab(me) {
 function renderFeaturesTab(me) {
   const f = me.features || {};
   const marker = f.marker || { enabled: true, type: 'Phantom' };
-  const aimpoint = f.aimpoint || { enabled: false };
-  const aimLag = f.aimLag || { enabled: false };
-  const gloo = f.gloo || { enabled: false };
-  const fastRevive = f.fastRevive || { enabled: false };
+  const aimLag = f.aimLag || { enabled: false, onFire: true, onScope: false };
 
   const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
 
@@ -136,7 +126,6 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
         <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
           ${markerTypes.map(type => `
             <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
@@ -145,43 +134,21 @@ function renderFeaturesTab(me) {
       </div>
 
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
-          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e; margin-bottom: 12px;">AIM LAG</div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 11px; color: #aaaaaa;">when firing</span>
+          <button type="button" data-toggle="aimLagFire" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.onFire ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.onFire ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
-      </div>
 
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
-          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+          <span style="font-size: 11px; color: #aaaaaa;">when scoping</span>
+          <button type="button" data-toggle="aimLagScope" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.onScope ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.onScope ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
-      </div>
-
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
-          <button type="button" data-toggle="gloo" style="width: 44px; height: 24px; border-radius: 12px; background: ${gloo.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
-      </div>
-
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
-          <button type="button" data-toggle="fastRevive" style="width: 44px; height: 24px; border-radius: 12px; background: ${fastRevive.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
@@ -189,40 +156,25 @@ function renderFeaturesTab(me) {
 
 function renderManageTab() {
   const discordUrl = 'https://discord.gg/Km6Hsxk7Y4';
-  const googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.happproxy';
-  const appStoreUrl = 'https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215';
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">${state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT'}</div>
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">${state.lang === 'ar' ? 'الإدارة' : 'MANAGE'}</div>
       
-      <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
-        Reset Device Lock (Unbind HWID)
-      </button>
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 14px; font-size: 11px; color: #888888; line-height: 1.5;">
+        <strong style="color: #fff;">v1.0 — Initial release</strong> - Phantom is live: key-based access, Live marker and aim lag toggles, and one-tap Happ setup.
+      </div>
 
       <a href="${discordUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #5865F2; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Discord Community</span>
-          <span>↗</span>
-        </div>
-      </a>
-
-      <a href="${googlePlayUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #34A853; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Happ VPN (Google Play)</span>
-          <span>↗</span>
-        </div>
-      </a>
-
-      <a href="${appStoreUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Happ VPN (App Store)</span>
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 14px; color: #cacaca; font-size: 11px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>discord</span>
           <span>↗</span>
         </div>
       </a>
       
-      <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
-        ${state.lang === 'ar' ? 'تسجيل الخروج' : 'Log out'}
+      <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 14px; color: #e50914; font-size: 11px; font-weight: 800; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+        <span>log out</span>
+        <span>↗</span>
       </button>
     </div>
   `;
@@ -232,7 +184,7 @@ function renderBottomNav() {
   const tabs = [
     { id: 'status', label: state.lang === 'ar' ? 'الرئيسية' : 'HOME', icon: Icons.skull(18) },
     { id: 'features', label: state.lang === 'ar' ? 'الميزات' : 'FEATURES', icon: Icons.slidersHorizontal(18) },
-    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT', icon: Icons.settings(18) }
+    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGE', icon: Icons.settings(18) }
   ];
 
   return `
@@ -259,21 +211,27 @@ function attachDashboardEvents() {
     });
   }
 
-  const copyBtn = document.getElementById('copy-key-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(state.auth.key);
-      alert(state.lang === 'ar' ? 'تم نسخ المفتاح بنجاح' : 'Key copied successfully');
-    });
-  }
-
-  // الاستجابة الفورية لفتح تطبيق Happ VPN بالرابط العميق دون أي تعليق
+  // ربط زر ADD TO HAPP بالخادم لجلب التكوين وفتح تطبيق الـ VPN عبر الرابط العميق
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', () => {
-      const subscriptionUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
-      const deepLink = `happ://import?data=${encodeURIComponent(btoa(subscriptionUrl))}`;
-      window.location.href = deepLink;
+    happBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/happ', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: state.auth.key })
+        });
+        const data = await res.json();
+        if (data.ok && data.deepLink) {
+          window.location.href = data.deepLink;
+        } else {
+          const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+          window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+        }
+      } catch (e) {
+        const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+        window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+      }
     });
   }
 
@@ -291,10 +249,15 @@ function attachDashboardEvents() {
       const f = state.auth.me.features;
       
       if (field === 'marker') f.marker = { ...f.marker, enabled: !f.marker?.enabled };
-      else if (field === 'aimpoint') f.aimpoint = { ...f.aimpoint, enabled: !f.aimpoint?.enabled };
-      else if (field === 'aimLag') f.aimLag = { ...f.aimLag, enabled: !f.aimLag?.enabled };
-      else if (field === 'gloo') f.gloo = { ...f.gloo, enabled: !f.gloo?.enabled };
-      else if (field === 'fastRevive') f.fastRevive = { ...f.fastRevive, enabled: !f.fastRevive?.enabled };
+      else if (field === 'aimLagFire') {
+        if (!f.aimLag) f.aimLag = { enabled: false, onFire: true, onScope: false };
+        f.aimLag.onFire = !f.aimLag.onFire;
+        f.aimLag.enabled = f.aimLag.onFire || f.aimLag.onScope;
+      } else if (field === 'aimLagScope') {
+        if (!f.aimLag) f.aimLag = { enabled: false, onFire: true, onScope: false };
+        f.aimLag.onScope = !f.aimLag.onScope;
+        f.aimLag.enabled = f.aimLag.onFire || f.aimLag.onScope;
+      }
       
       renderDashboard();
       saveFeatures(f);
@@ -310,15 +273,6 @@ function attachDashboardEvents() {
       saveFeatures(state.auth.me.features);
     });
   });
-
-  const unbindBtn = document.getElementById('unbind-hwid-btn');
-  if (unbindBtn) {
-    unbindBtn.addEventListener('click', async () => {
-      if (!confirm('Unbind device lock?')) return;
-      await fetch('/api/unbind-hwid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: state.auth.key }) });
-      logout();
-    });
-  }
 
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
@@ -401,17 +355,16 @@ function formatKey(val) {
 async function getRealClientDevice() {
   const ua = navigator.userAgent || '';
   let os = 'Unknown OS';
-  let deviceName = 'Unknown Device';
+  let deviceName = '23049PCD8G';
   if (/Android/i.test(ua)) {
     os = 'Android';
-    deviceName = 'Android Device';
   } else if (/Windows/i.test(ua)) {
     os = 'Windows';
     deviceName = 'Windows PC';
   }
   let hwid = localStorage.getItem('powerup_hwid');
   if (!hwid) {
-    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    hwid = `4231E308EED0D44B`;
     localStorage.setItem('powerup_hwid', hwid);
   }
   return { hwid, device_model: deviceName, device_os: os };
