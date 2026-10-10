@@ -62,14 +62,14 @@ function renderDashboard() {
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- الشريط العلوي: مؤشر الاتصال يساراً، وزر الترجمة الدائري الأيقوني يميناً -->
+      <!-- الشريط العلوي: مؤشر الاتصال يساراً، وزر الترجمة الدائري يميناً -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #10b981;">
           <span style="height: 8px; width: 8px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981;"></span>
           ${state.lang === 'ar' ? 'متصل' : 'CONNECTED'}
         </div>
         
-        <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6); transition: transform 0.1s;" title="Change Language">
+        <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);" title="Change Language">
           ${Icons.languages(20)}
         </button>
       </div>
@@ -188,13 +188,30 @@ function renderFeaturesTab(me) {
 }
 
 function renderManageTab() {
+  const discordLink = CONFIG.DISCORD_URL || 'https://discord.gg/srxteam';
+  const happLink = CONFIG.HAPP_URL || 'happ://';
+
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left;">
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
       <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">${state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT'}</div>
       
       <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
         Reset Device Lock (Unbind HWID)
       </button>
+
+      <a href="${discordLink}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #5865F2; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Discord Community</span>
+          <span>↗</span>
+        </div>
+      </a>
+
+      <a href="${happLink}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Open Happ VPN</span>
+          <span>↗</span>
+        </div>
+      </a>
       
       <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
         ${state.lang === 'ar' ? 'تسجيل الخروج' : 'Log out'}
@@ -239,6 +256,13 @@ function attachDashboardEvents() {
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(state.auth.key);
       alert(state.lang === 'ar' ? 'تم نسخ المفتاح بنجاح' : 'Key copied successfully');
+    });
+  }
+
+  const happBtn = document.getElementById('happ-btn');
+  if (happBtn) {
+    happBtn.addEventListener('click', () => {
+      window.location.href = CONFIG.HAPP_URL || 'happ://';
     });
   }
 
