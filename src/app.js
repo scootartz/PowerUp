@@ -19,6 +19,7 @@ const state = {
   }
 };
 
+// فحص الجلسة المحفوظة
 const savedSession = localStorage.getItem('powerup_session');
 if (savedSession) {
   try {
@@ -87,28 +88,28 @@ function renderDashboard() {
   document.title = 'POWER UP — Client Portal';
 
   root.innerHTML = `
-    <div class="relative mx-auto flex min-h-screen w-full max-w-md flex-col justify-between px-5 pt-5 pb-28 bg-[#050505] text-[#cacaca]">
+    <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- شريط علوي مطابق للصورة حرفياً (CONNECTED + زر الترجمة) -->
-      <div class="w-full flex items-center justify-between px-2 py-3 z-10">
-        <div class="flex items-center gap-2 text-xs font-bold tracking-[0.15em] text-[#10b981]">
-          <span class="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
+      <!-- الشريط العلوي المطابق للصورة: CONNECTED والزر الدائري للترجمة -->
+      <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #10b981;">
+          <span style="height: 8px; width: 8px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981;"></span>
           CONNECTED
         </div>
         
-        <button id="lang-toggle-icon" class="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#0a0a0a] border border-[#1f1f1f] text-[#ccc] hover:text-white transition-colors">
+        <button id="lang-toggle-icon" style="background: #0d0d0d; border: 1px solid #222222; border-radius: 50%; width: 38px; height: 38px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer;">
           ${Icons.languages(16)}
         </button>
       </div>
 
-      <!-- محتوى التبويبات المتغيرة -->
-      <div class="w-full flex-1 flex flex-col items-center justify-center my-auto">
+      <!-- تبويبات الصفحة الرئيسية -->
+      <div style="width: 100%; max-width: 400px; margin: auto 0; display: flex; flex-direction: column; align-items: center;">
         ${state.tab === 'status' ? renderStatusTab(state.auth.me) : ''}
         ${state.tab === 'features' ? renderFeaturesTab(state.auth.me) : ''}
         ${state.tab === 'manage' ? renderManageTab() : ''}
       </div>
 
-      <!-- شريط التنقل السفلي المطابق للصورة تماماً -->
+      <!-- شريط التنقل السفلي العائم المطابق للصور 100% -->
       ${renderBottomNav()}
     </div>
   `;
@@ -119,105 +120,105 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div class="w-full flex flex-col items-center justify-center gap-6 text-center animate-rise">
-      <!-- شعار logo.png النظيفة والمضيئة -->
-      <img src="logo.png" alt="POWER UP" class="max-w-[210px] w-full h-auto object-contain my-3 drop-shadow-[0_0_15px_rgba(229,9,20,0.35)]" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center;">
+      <!-- صورة الشعار logo.png النظيفة والمنسقة -->
+      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <!-- إطار المفتاح مع زر النسخ المطابق للصورة -->
-      <div class="flex items-center justify-between w-full max-w-[320px] bg-[#0a0a0a] border border-[#1f1f1f] px-4 py-3 rounded-2xl shadow-inner">
-        <span class="text-xs font-semibold tracking-[0.15em] text-[#ccc]">${state.auth.key || 'AMHK-80E1-9AB2-12A8'}</span>
-        <button id="copy-key-btn" class="text-[#8a8a8e] hover:text-white transition-colors">
+      <!-- إطار المفتاح مع زر النسخ -->
+      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-80E1-9AB2-12A8'}</span>
+        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
           ${Icons.copy(16)}
         </button>
       </div>
 
-      <!-- زر ADD SUBSCRIPTION الأحمر البارز -->
-      <div class="w-full max-w-[320px] mt-1">
-        <button id="happ-btn" class="w-full bg-[#e50914] hover:bg-[#c40711] text-white font-bold py-4 px-6 rounded-2xl uppercase tracking-[0.18em] text-xs transition-transform active:scale-[0.99] shadow-lg shadow-[#e50914]/25">
+      <!-- زر ADD SUBSCRIPTION الأحادي البارز -->
+      <div style="width: 100%; max-width: 320px;">
+        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
           ADD SUBSCRIPTION
         </button>
       </div>
 
-      <!-- العداد أسفل الزر تماماً -->
-      <p class="text-[11px] uppercase tracking-[0.2em] text-[#777] mt-1">
-        EXPIRES IN <span class="text-white font-semibold">${expiresText}</span>
+      <!-- العداد تحت الزر -->
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -4px;">
+        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
       </p>
     </div>
   `;
 }
 
 function renderFeaturesTab(me) {
-  const f = me.features;
+  const f = me.features || {};
   const marker = f.marker || { enabled: true, type: 'Phantom' };
   const aimpoint = f.aimpoint || { enabled: false };
-  const aimLag = f.aimLag || { enabled: false };
-  const gloo = f.gloo || { enabled: false };
+  const aimLag = f.aimLag || { enabled: false, whenFiring: false, whenScoping: false };
+  const gloo = f.gloo || { enabled: false, rotation: 180 };
   const fastRevive = f.fastRevive || { enabled: false };
 
   const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
 
   return `
-    <div class="w-full flex flex-col gap-4 animate-rise px-1 text-left max-h-[70vh] overflow-y-auto pb-4">
-      <div class="text-xs font-bold uppercase tracking-[0.2em] text-white px-1">FEATURES</div>
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">FEATURES</div>
 
-      <!-- Marker Type Card -->
-      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Marker Type</span>
-          <button type="button" data-toggle="marker" class="relative h-6 w-11 rounded-full transition-colors ${marker.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${marker.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- MARKER TYPE Card -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">MARKER TYPE</span>
+          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer; transition: background 0.2s;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'} transition: all 0.2s;"></span>
           </button>
         </div>
-        <p class="text-[10.5px] text-[#777] mt-1.5">Marks every enemy on your screen. Pick the mark you see.</p>
-        <div class="mt-3 flex flex-wrap gap-1.5">
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
           ${markerTypes.map(type => `
-            <button data-marker-type="${type}" class="rounded-xl px-2.5 py-1 text-[11px] transition-colors ${marker.type === type ? 'bg-[#e50914] font-bold text-white' : 'bg-white/[0.04] text-[#8a8a8e] hover:text-white'}">${type}</button>
+            <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
           `).join('')}
         </div>
       </div>
 
-      <!-- Aimpoint Card -->
-      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Aimpoint</span>
-          <button type="button" data-toggle="aimpoint" class="relative h-6 w-11 rounded-full transition-colors ${aimpoint.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimpoint.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- AIMPOINT Card -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
+          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="text-[10.5px] text-[#777] mt-1.5">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
       </div>
 
-      <!-- Aim Lag Card -->
-      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Aim Lag</span>
-          <button type="button" data-toggle="aimLag" class="relative h-6 w-11 rounded-full transition-colors ${aimLag.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimLag.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- AIM LAG Card -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
+          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="text-[10.5px] text-[#777] mt-1.5">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
       </div>
 
-      <!-- Gloo Rotation Card -->
-      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Gloo Rotation</span>
-          <button type="button" data-toggle="gloo" class="relative h-6 w-11 rounded-full transition-colors ${gloo.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${gloo.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- GLOO ROTATION Card -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
+          <button type="button" data-toggle="gloo" style="width: 44px; height: 24px; border-radius: 12px; background: ${gloo.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="text-[10.5px] text-[#777] mt-1.5">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
       </div>
 
-      <!-- Fast Revive Card -->
-      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Fast Revive</span>
-          <button type="button" data-toggle="fastRevive" class="relative h-6 w-11 rounded-full transition-colors ${fastRevive.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${fastRevive.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- FAST REVIVE Card -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
+          <button type="button" data-toggle="fastRevive" style="width: 44px; height: 24px; border-radius: 12px; background: ${fastRevive.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="text-[10.5px] text-[#777] mt-1.5">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
@@ -225,12 +226,14 @@ function renderFeaturesTab(me) {
 
 function renderManageTab() {
   return `
-    <div class="w-full flex flex-col gap-3 animate-rise px-1 text-left">
-      <div class="text-xs font-bold uppercase tracking-[0.2em] text-white px-1">MANAGEMENT</div>
-      <button id="unbind-hwid-btn" class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl text-xs font-semibold text-white hover:border-[#e50914]/50 transition-colors">
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left;">
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">MANAGEMENT</div>
+      
+      <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
         Reset Device Lock (Unbind HWID)
       </button>
-      <button id="logout-btn" class="card p-4 bg-[#0a0a0a] border border-[#e50914]/30 rounded-2xl text-xs font-bold text-[#e50914] hover:border-[#e50914] transition-colors">
+      
+      <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
         Log out
       </button>
     </div>
@@ -245,16 +248,16 @@ function renderBottomNav() {
   ];
 
   return `
-    <nav class="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none">
-      <div class="pointer-events-auto flex items-stretch gap-1 rounded-[24px] bg-[#0a0a0a]/95 border border-[#1f1f1f] p-1.5 backdrop-blur-xl shadow-2xl">
+    <div style="position: fixed; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; z-index: 50; pointer-events: none;">
+      <div style="pointer-events: auto; background: rgba(10, 10, 10, 0.95); border: 1px solid #1f1f1f; border-radius: 24px; padding: 6px; display: flex; gap: 6px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
         ${tabs.map(item => `
-          <button data-nav-tab="${item.id}" class="flex w-[86px] flex-col items-center justify-center gap-1 rounded-[18px] py-2.5 transition-all ${state.tab === item.id ? 'bg-[#18181b] text-white font-bold border border-[#333] shadow-md' : 'text-[#8a8a8e] hover:text-white'}">
+          <button data-nav-tab="${item.id}" style="width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 18px; padding: 10px 0; border: ${state.tab === item.id ? '1px solid #333333' : 'none'}; background: ${state.tab === item.id ? '#1a1a1a' : 'transparent'}; color: ${state.tab === item.id ? '#ffffff' : '#777777'}; cursor: pointer; transition: all 0.2s;">
             ${item.icon}
-            <span class="text-[9.5px] uppercase tracking-[0.1em]">${item.label}</span>
+            <span style="font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">${item.label}</span>
           </button>
         `).join('')}
       </div>
-    </nav>
+    </div>
   `;
 }
 
@@ -286,12 +289,15 @@ function attachDashboardEvents() {
   document.querySelectorAll('[data-toggle]').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.getAttribute('data-toggle');
+      if (!state.auth.me.features) state.auth.me.features = {};
       const f = state.auth.me.features;
-      if (field === 'marker') f.marker.enabled = !f.marker.enabled;
-      else if (field === 'aimpoint') f.aimpoint.enabled = !f.aimpoint.enabled;
-      else if (field === 'aimLag') f.aimLag.enabled = !f.aimLag.enabled;
-      else if (field === 'gloo') f.gloo.enabled = !f.gloo.enabled;
-      else if (field === 'fastRevive') f.fastRevive.enabled = !f.fastRevive.enabled;
+      
+      if (field === 'marker') f.marker = { ...f.marker, enabled: !f.marker?.enabled };
+      else if (field === 'aimpoint') f.aimpoint = { ...f.aimpoint, enabled: !f.aimpoint?.enabled };
+      else if (field === 'aimLag') f.aimLag = { ...f.aimLag, enabled: !f.aimLag?.enabled };
+      else if (field === 'gloo') f.gloo = { ...f.gloo, enabled: !f.gloo?.enabled };
+      else if (field === 'fastRevive') f.fastRevive = { ...f.fastRevive, enabled: !f.fastRevive?.enabled };
+      
       renderDashboard();
       saveFeatures(f);
     });
@@ -299,6 +305,8 @@ function attachDashboardEvents() {
 
   document.querySelectorAll('[data-marker-type]').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (!state.auth.me.features) state.auth.me.features = {};
+      if (!state.auth.me.features.marker) state.auth.me.features.marker = {};
       state.auth.me.features.marker.type = btn.getAttribute('data-marker-type');
       renderDashboard();
       saveFeatures(state.auth.me.features);
@@ -334,7 +342,7 @@ function logout() {
   location.reload();
 }
 
-// تشغيل واجهة تسجيل الدخول الأصلية أو لوحة التحكم بناءً على حالة الجلسة
+// ربط زر تسجيل الدخول الأساسي من index.html
 document.addEventListener('DOMContentLoaded', () => {
   const keyInput = document.getElementById('access-key-input');
   const unlockBtn = document.getElementById('unlock-btn');
@@ -384,7 +392,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // إذا كان مسجلاً للدخول مسبقاً، اعرض اللوحة مباشرة
   if (state.auth.loggedIn) {
     renderDashboard();
   }
