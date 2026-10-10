@@ -34,14 +34,12 @@ if (savedSession) {
 }
 
 function formatCountdown(targetIso) {
-  if (!targetIso) return '3649d 18h';
+  if (!targetIso) return '2h 38m';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
-  const days = Math.floor(sec / 86400);
-  const hours = Math.floor((sec % 86400) / 3600);
+  const hours = Math.floor(sec / 3600);
   const mins = Math.floor((sec % 3600) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${mins}m`;
   return `${mins}m`;
 }
@@ -53,12 +51,10 @@ function renderDashboard() {
   const isRtl = state.lang === 'ar';
   document.documentElement.setAttribute('lang', state.lang);
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
-  document.title = 'POWER UP — Client Portal';
+  document.title = 'AIMHACK — Client Portal';
 
   const statusColor = state.isConnected ? '#10b981' : '#e50914';
-  const statusText = state.isConnected 
-    ? (state.lang === 'ar' ? 'متصل' : 'CONNECTED') 
-    : (state.lang === 'ar' ? 'غير متصل' : 'OFFLINE');
+  const statusText = state.isConnected ? 'CONNECTED' : 'OFFLINE';
 
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
@@ -93,14 +89,14 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center;">
+      <img src="logo.png" alt="AIMHACK" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <!-- خانة المفتاح في المنتصف تماماً -->
-      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-WKZF-LMXY-EH3Y'}</span>
-        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
-          ${Icons.copy(16)}
+      <!-- خانة المفتاح المضبوطة تماماً مثل الصورة المطلوبة (دائرية الأطراف وبشكل متناسق في المنتصف) -->
+      <div style="width: 100%; max-width: 310px; background: #0a0a0a; border: 1px solid #222222; border-radius: 30px; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 0 auto;">
+        <span style="font-size: 11.5px; font-weight: 700; letter-spacing: 1.5px; color: #cccccc; margin: 0 auto;">${state.auth.key || 'AMHK-80E1-9AB2-12A8'}</span>
+        <button id="copy-key-btn" style="background: transparent; border: none; color: #888888; cursor: pointer; display: flex; align-items: center; padding-left: 8px;">
+          ${Icons.copy(15)}
         </button>
       </div>
 
@@ -110,8 +106,8 @@ function renderStatusTab(me) {
         </button>
       </div>
 
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
-        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #777777; margin-top: -6px;">
+        EXPIRES IN <span style="color: #cccccc; font-weight: 700;">${expiresText}</span>
       </p>
     </div>
   `;
@@ -132,7 +128,6 @@ function renderFeaturesTab(me) {
     <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
       <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">FEATURES</div>
 
-      <!-- Marker Type مع تفعيل/تعطيل الخيارات السفلية بناءً على الزر العلوي -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">MARKER TYPE</span>
@@ -149,7 +144,6 @@ function renderFeaturesTab(me) {
         </div>
       </div>
 
-      <!-- Aimpoint -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
@@ -160,7 +154,6 @@ function renderFeaturesTab(me) {
         <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
       </div>
 
-      <!-- Aim Lag -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
@@ -171,7 +164,6 @@ function renderFeaturesTab(me) {
         <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
       </div>
 
-      <!-- Gloo Rotation -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
@@ -182,7 +174,6 @@ function renderFeaturesTab(me) {
         <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
       </div>
 
-      <!-- Fast Revive -->
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
@@ -435,7 +426,7 @@ async function getRealClientDevice() {
   }
   let hwid = localStorage.getItem('powerup_hwid');
   if (!hwid) {
-    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    hwid = `AMHK-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
     localStorage.setItem('powerup_hwid', hwid);
   }
   return { hwid, device_model: deviceName, device_os: os };
