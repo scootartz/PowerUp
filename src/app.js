@@ -37,6 +37,33 @@ function t(key) {
   return dict[key] || TRANSLATIONS.en[key] || key;
 }
 
+async function getRealClientDevice() {
+  const ua = navigator.userAgent || '';
+  let os = 'Unknown OS';
+  let deviceName = 'Unknown Device';
+
+  if (/Android/i.test(ua)) {
+    const m = ua.match(/Android (\d+(\.\d+)?)/);
+    os = m ? `Android ${m[1]}` : 'Android';
+    const modelMatch = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
+    deviceName = `${modelMatch ? modelMatch[1].trim() : 'Android Device'} (${os})`;
+  } else if (/Windows/i.test(ua)) {
+    os = 'Windows';
+    deviceName = 'Windows PC';
+  }
+
+  let hwid = localStorage.getItem('powerup_hwid');
+  if (!hwid) {
+    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    localStorage.setItem('powerup_hwid', hwid);
+  }
+  return { hwid, device_model: deviceName, device_os: os };
+}
+
+function formatKey(val) {
+  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g) ?? []).join('-');
+}
+
 function formatCountdown(targetIso) {
   if (!targetIso) return '2h 38m';
   const diff = new Date(targetIso).getTime() - Date.now();
@@ -50,7 +77,7 @@ function formatCountdown(targetIso) {
   return `${mins}m`;
 }
 
-function render() {
+function renderDashboard() {
   const root = document.getElementById('app');
   if (!root) return;
 
@@ -58,9 +85,6 @@ function render() {
   document.documentElement.setAttribute('lang', state.lang);
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.title = 'POWER UP — Client Portal';
-
-  // إذا لم يتم تسجيل الدخول، اترك واجهة تسجيل الدخول في حالها تماماً (من index.html)
-  if (!state.auth.loggedIn) return;
 
   root.innerHTML = `
     <div class="relative mx-auto flex min-h-screen w-full max-w-md flex-col justify-between px-5 pt-5 pb-28 bg-[#050505] text-[#cacaca]">
@@ -88,7 +112,7 @@ function render() {
       ${renderBottomNav()}
     </div>
   `;
-  attachEvents();
+  attachDashboardEvents();
 }
 
 function renderStatusTab(me) {
@@ -234,13 +258,13 @@ function renderBottomNav() {
   `;
 }
 
-function attachEvents() {
+function attachDashboardEvents() {
   const langBtn = document.getElementById('lang-toggle-icon');
   if (langBtn) {
     langBtn.addEventListener('click', () => {
       state.lang = state.lang === 'en' ? 'ar' : 'en';
       localStorage.setItem('powerup_lang', state.lang);
-      render();
+      renderDashboard();
     });
   }
 
@@ -255,7 +279,7 @@ function attachEvents() {
   document.querySelectorAll('[data-nav-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.tab = btn.getAttribute('data-nav-tab');
-      render();
+      renderDashboard();
     });
   });
 
@@ -268,7 +292,7 @@ function attachEvents() {
       else if (field === 'aimLag') f.aimLag.enabled = !f.aimLag.enabled;
       else if (field === 'gloo') f.gloo.enabled = !f.gloo.enabled;
       else if (field === 'fastRevive') f.fastRevive.enabled = !f.fastRevive.enabled;
-      render();
+      renderDashboard();
       saveFeatures(f);
     });
   });
@@ -276,7 +300,7 @@ function attachEvents() {
   document.querySelectorAll('[data-marker-type]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.auth.me.features.marker.type = btn.getAttribute('data-marker-type');
-      render();
+      renderDashboard();
       saveFeatures(state.auth.me.features);
     });
   });
@@ -310,12 +334,58 @@ function logout() {
   location.reload();
 }
 
-// إذا كان مسجلاً للدخول بالفعل، قم بعرض اللوحة المطابقة فوراً
-if (state.auth.loggedIn) {
-  document.addEventListener('DOMContentLoaded', () => {
-    render();
-  });
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    render();
+// تشغيل واجهة تسجيل الدخول الأصلية أو لوحة التحكم بناءً على حالة الجلسة
+document.addEventListener('DOMContentLoaded', () => {
+  const keyInput = document.getElementById('access-key-input');
+  const unlockBtn = document.getElementById('unlock-btn');
+
+  if (keyInput) {
+    keyInput.addEventListener('input', (e) => {
+      keyInput.value = formatKey(e.target.value);
+    });
   }
-}
+
+  if (unlockBtn) {
+    unlockBtn.addEventListener('click', async () => {
+      const val = keyInput ? keyInput.value.trim() : '';
+      if (!val) {
+        alert('Please enter your access key');
+        return;
+      }
+
+      unlockBtn.textContent = 'Authenticating...';
+      unlockBtn.disabled = true;
+
+      try {
+        const dev = await getRealClientDevice();
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: val, hwid: dev.hwid, device_model: dev.device_model, device_os: dev.device_os })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          state.auth.loggedIn = true;
+          state.auth.key = val;
+          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
+          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
+          renderDashboard();
+        } else {
+          alert(data.error || 'Invalid key');
+          unlockBtn.textContent = 'Unlock';
+          unlockBtn.disabled = false;
+        }
+      } catch (err) {
+        alert('Network error');
+        unlockBtn.textContent = 'Unlock';
+        unlockBtn.disabled = false;
+      }
+    });
+  }
+
+  // إذا كان مسجلاً للدخول مسبقاً، اعرض اللوحة مباشرة
+  if (state.auth.loggedIn) {
+    renderDashboard();
+  }
+});
