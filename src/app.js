@@ -188,8 +188,9 @@ function renderFeaturesTab(me) {
 }
 
 function renderManageTab() {
-  const discordLink = CONFIG.DISCORD_URL || 'https://discord.gg/srxteam';
-  const happLink = CONFIG.HAPP_URL || 'happ://';
+  const discordUrl = 'https://discord.gg/Km6Hsxk7Y4';
+  const googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.happproxy';
+  const appStoreUrl = 'https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215';
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
@@ -199,16 +200,23 @@ function renderManageTab() {
         Reset Device Lock (Unbind HWID)
       </button>
 
-      <a href="${discordLink}" target="_blank" style="text-decoration: none; width: 100%;">
+      <a href="${discordUrl}" target="_blank" style="text-decoration: none; width: 100%;">
         <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #5865F2; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
           <span>Discord Community</span>
           <span>↗</span>
         </div>
       </a>
 
-      <a href="${happLink}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Open Happ VPN</span>
+      <a href="${googlePlayUrl}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #34A853; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Happ VPN (Google Play)</span>
+          <span>↗</span>
+        </div>
+      </a>
+
+      <a href="${appStoreUrl}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Happ VPN (App Store)</span>
           <span>↗</span>
         </div>
       </a>
@@ -262,7 +270,8 @@ function attachDashboardEvents() {
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
     happBtn.addEventListener('click', () => {
-      window.location.href = CONFIG.HAPP_URL || 'happ://';
+      // فتح رابط متجر جوجل أو افتراضي عند الضغط على زر إضافة اشتراك
+      window.open('https://play.google.com/store/apps/details?id=com.happproxy', '_blank');
     });
   }
 
