@@ -16,11 +16,7 @@ const state = {
       expires_at: null,
       features: JSON.parse(JSON.stringify(CONFIG.DEFAULT_FEATURES))
     }
-  },
-  keyInput: '',
-  loading: false,
-  error: null,
-  happLoading: false
+  }
 };
 
 const savedSession = localStorage.getItem('powerup_session');
@@ -41,35 +37,8 @@ function t(key) {
   return dict[key] || TRANSLATIONS.en[key] || key;
 }
 
-async function getRealClientDevice() {
-  const ua = navigator.userAgent || '';
-  let os = 'Unknown OS';
-  let deviceName = 'Unknown Device';
-
-  if (/Android/i.test(ua)) {
-    const m = ua.match(/Android (\d+(\.\d+)?)/);
-    os = m ? `Android ${m[1]}` : 'Android';
-    const modelMatch = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
-    deviceName = `${modelMatch ? modelMatch[1].trim() : 'Android Device'} (${os})`;
-  } else if (/Windows/i.test(ua)) {
-    os = 'Windows';
-    deviceName = 'Windows PC';
-  }
-
-  let hwid = localStorage.getItem('powerup_hwid');
-  if (!hwid) {
-    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
-    localStorage.setItem('powerup_hwid', hwid);
-  }
-  return { hwid, device_model: deviceName, device_os: os };
-}
-
-function formatKey(val) {
-  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g) ?? []).join('-');
-}
-
 function formatCountdown(targetIso) {
-  if (!targetIso) return '—';
+  if (!targetIso) return '2h 38m';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
@@ -90,14 +59,15 @@ function render() {
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.title = 'POWER UP — Client Portal';
 
-  if (!state.auth.loggedIn) return; // الواجهة الأولى لـ index.html
+  // إذا لم يتم تسجيل الدخول، اترك واجهة تسجيل الدخول في حالها تماماً (من index.html)
+  if (!state.auth.loggedIn) return;
 
   root.innerHTML = `
-    <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6 items-center justify-between">
+    <div class="relative mx-auto flex min-h-screen w-full max-w-md flex-col justify-between px-5 pt-5 pb-28 bg-[#050505] text-[#cacaca]">
       
       <!-- شريط علوي مطابق للصورة حرفياً (CONNECTED + زر الترجمة) -->
-      <div class="w-full flex items-center justify-between px-1 py-4">
-        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-[#10b981]">
+      <div class="w-full flex items-center justify-between px-2 py-3 z-10">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-[0.15em] text-[#10b981]">
           <span class="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
           CONNECTED
         </div>
@@ -116,7 +86,7 @@ function render() {
 
       <!-- شريط التنقل السفلي المطابق للصورة تماماً -->
       ${renderBottomNav()}
-    </main>
+    </div>
   `;
   attachEvents();
 }
@@ -126,26 +96,25 @@ function renderStatusTab(me) {
 
   return `
     <div class="w-full flex flex-col items-center justify-center gap-6 text-center animate-rise">
-      
-      <!-- استخدام شعار logo.png المطابق تماماً للطلب -->
-      <img src="logo.png" alt="POWER UP" class="max-w-[200px] w-full h-auto object-contain my-4 drop-shadow-[0_0_15px_rgba(229,9,20,0.3)]" />
+      <!-- شعار logo.png النظيفة والمضيئة -->
+      <img src="logo.png" alt="POWER UP" class="max-w-[210px] w-full h-auto object-contain my-3 drop-shadow-[0_0_15px_rgba(229,9,20,0.35)]" />
 
-      <!-- إطار المفتاح مع زر النسخ -->
-      <div class="flex items-center justify-between w-full max-w-[320px] bg-[#0a0a0a] border border-[#1f1f1f] px-4 py-3 rounded-2xl">
-        <span class="text-xs font-semibold tracking-[0.15em] text-[#ccc]">${state.auth.key || 'PWUP-XXXX-XXXX-XXXX'}</span>
+      <!-- إطار المفتاح مع زر النسخ المطابق للصورة -->
+      <div class="flex items-center justify-between w-full max-w-[320px] bg-[#0a0a0a] border border-[#1f1f1f] px-4 py-3 rounded-2xl shadow-inner">
+        <span class="text-xs font-semibold tracking-[0.15em] text-[#ccc]">${state.auth.key || 'AMHK-80E1-9AB2-12A8'}</span>
         <button id="copy-key-btn" class="text-[#8a8a8e] hover:text-white transition-colors">
           ${Icons.copy(16)}
         </button>
       </div>
 
-      <!-- زر ADD SUBSCRIPTION / إضافة اشتراك أو ربط بـ Happ -->
-      <div class="w-full max-w-[320px] mt-2">
-        <button id="happ-btn" class="w-full bg-[#e50914] hover:c40711 text-white font-bold py-3.5 px-6 rounded-2xl uppercase tracking-[0.15em] text-xs transition-transform active:scale-[0.99] shadow-lg shadow-[#e50914]/20">
-          ${t('add_to_happ')}
+      <!-- زر ADD SUBSCRIPTION الأحمر البارز -->
+      <div class="w-full max-w-[320px] mt-1">
+        <button id="happ-btn" class="w-full bg-[#e50914] hover:bg-[#c40711] text-white font-bold py-4 px-6 rounded-2xl uppercase tracking-[0.18em] text-xs transition-transform active:scale-[0.99] shadow-lg shadow-[#e50914]/25">
+          ADD SUBSCRIPTION
         </button>
       </div>
 
-      <!-- عداد انتهاء الصلاحية أسفل الزر تماماً كالصورة -->
+      <!-- العداد أسفل الزر تماماً -->
       <p class="text-[11px] uppercase tracking-[0.2em] text-[#777] mt-1">
         EXPIRES IN <span class="text-white font-semibold">${expiresText}</span>
       </p>
@@ -154,17 +123,77 @@ function renderStatusTab(me) {
 }
 
 function renderFeaturesTab(me) {
-  const f = me.features.marker || { enabled: true, type: 'Power' };
+  const f = me.features;
+  const marker = f.marker || { enabled: true, type: 'Phantom' };
+  const aimpoint = f.aimpoint || { enabled: false };
+  const aimLag = f.aimLag || { enabled: false };
+  const gloo = f.gloo || { enabled: false };
+  const fastRevive = f.fastRevive || { enabled: false };
+
+  const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
+
   return `
-    <div class="w-full flex flex-col gap-4 animate-rise">
-      <div class="px-1 text-xs font-bold uppercase tracking-[0.2em] text-white text-left">${t('features_title')}</div>
-      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl text-left">
+    <div class="w-full flex flex-col gap-4 animate-rise px-1 text-left max-h-[70vh] overflow-y-auto pb-4">
+      <div class="text-xs font-bold uppercase tracking-[0.2em] text-white px-1">FEATURES</div>
+
+      <!-- Marker Type Card -->
+      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
         <div class="flex items-center justify-between">
           <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Marker Type</span>
-          <button type="button" data-toggle="marker" class="relative h-6 w-11 rounded-full transition-colors ${f.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${f.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          <button type="button" data-toggle="marker" class="relative h-6 w-11 rounded-full transition-colors ${marker.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${marker.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
           </button>
         </div>
+        <p class="text-[10.5px] text-[#777] mt-1.5">Marks every enemy on your screen. Pick the mark you see.</p>
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          ${markerTypes.map(type => `
+            <button data-marker-type="${type}" class="rounded-xl px-2.5 py-1 text-[11px] transition-colors ${marker.type === type ? 'bg-[#e50914] font-bold text-white' : 'bg-white/[0.04] text-[#8a8a8e] hover:text-white'}">${type}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Aimpoint Card -->
+      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Aimpoint</span>
+          <button type="button" data-toggle="aimpoint" class="relative h-6 w-11 rounded-full transition-colors ${aimpoint.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimpoint.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="text-[10.5px] text-[#777] mt-1.5">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
+      </div>
+
+      <!-- Aim Lag Card -->
+      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Aim Lag</span>
+          <button type="button" data-toggle="aimLag" class="relative h-6 w-11 rounded-full transition-colors ${aimLag.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimLag.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="text-[10.5px] text-[#777] mt-1.5">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
+      </div>
+
+      <!-- Gloo Rotation Card -->
+      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Gloo Rotation</span>
+          <button type="button" data-toggle="gloo" class="relative h-6 w-11 rounded-full transition-colors ${gloo.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${gloo.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="text-[10.5px] text-[#777] mt-1.5">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
+      </div>
+
+      <!-- Fast Revive Card -->
+      <div class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.15em] text-[#8a8a8e]">Fast Revive</span>
+          <button type="button" data-toggle="fastRevive" class="relative h-6 w-11 rounded-full transition-colors ${fastRevive.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${fastRevive.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="text-[10.5px] text-[#777] mt-1.5">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
@@ -172,13 +201,13 @@ function renderFeaturesTab(me) {
 
 function renderManageTab() {
   return `
-    <div class="w-full flex flex-col gap-3 animate-rise text-left">
-      <div class="px-1 text-xs font-bold uppercase tracking-[0.2em] text-white">Management</div>
-      <button id="unbind-hwid-btn" class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl text-sm text-white hover:border-[#e50914]/50 transition-colors">
+    <div class="w-full flex flex-col gap-3 animate-rise px-1 text-left">
+      <div class="text-xs font-bold uppercase tracking-[0.2em] text-white px-1">MANAGEMENT</div>
+      <button id="unbind-hwid-btn" class="card p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl text-xs font-semibold text-white hover:border-[#e50914]/50 transition-colors">
         Reset Device Lock (Unbind HWID)
       </button>
-      <button id="logout-btn" class="card p-4 bg-[#0a0a0a] border border-[#e50914]/30 rounded-2xl text-sm text-[#e50914] font-bold hover:border-[#e50914] transition-colors">
-        ${t('log_out')}
+      <button id="logout-btn" class="card p-4 bg-[#0a0a0a] border border-[#e50914]/30 rounded-2xl text-xs font-bold text-[#e50914] hover:border-[#e50914] transition-colors">
+        Log out
       </button>
     </div>
   `;
@@ -186,16 +215,16 @@ function renderManageTab() {
 
 function renderBottomNav() {
   const tabs = [
-    { id: 'status', label: t('nav_home'), icon: Icons.skull(18) },
-    { id: 'features', label: t('nav_features'), icon: Icons.slidersHorizontal(18) },
-    { id: 'manage', label: t('nav_manage'), icon: Icons.settings(18) }
+    { id: 'status', label: 'HOME', icon: Icons.skull(18) },
+    { id: 'features', label: 'FEATURES', icon: Icons.slidersHorizontal(18) },
+    { id: 'manage', label: 'MANAGE', icon: Icons.settings(18) }
   ];
 
   return `
-    <nav class="fixed inset-x-0 bottom-5 z-40 flex justify-center px-4 pointer-events-none">
+    <nav class="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 pointer-events-none">
       <div class="pointer-events-auto flex items-stretch gap-1 rounded-[24px] bg-[#0a0a0a]/95 border border-[#1f1f1f] p-1.5 backdrop-blur-xl shadow-2xl">
         ${tabs.map(item => `
-          <button data-nav-tab="${item.id}" class="flex w-[82px] flex-col items-center justify-center gap-1 rounded-[18px] py-2.5 transition-all ${state.tab === item.id ? 'bg-[#1a1a1a] text-white font-bold border border-[#333] shadow-lg' : 'text-[#8a8a8e] hover:text-white'}">
+          <button data-nav-tab="${item.id}" class="flex w-[86px] flex-col items-center justify-center gap-1 rounded-[18px] py-2.5 transition-all ${state.tab === item.id ? 'bg-[#18181b] text-white font-bold border border-[#333] shadow-md' : 'text-[#8a8a8e] hover:text-white'}">
             ${item.icon}
             <span class="text-[9.5px] uppercase tracking-[0.1em]">${item.label}</span>
           </button>
@@ -230,51 +259,63 @@ function attachEvents() {
     });
   });
 
+  document.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.getAttribute('data-toggle');
+      const f = state.auth.me.features;
+      if (field === 'marker') f.marker.enabled = !f.marker.enabled;
+      else if (field === 'aimpoint') f.aimpoint.enabled = !f.aimpoint.enabled;
+      else if (field === 'aimLag') f.aimLag.enabled = !f.aimLag.enabled;
+      else if (field === 'gloo') f.gloo.enabled = !f.gloo.enabled;
+      else if (field === 'fastRevive') f.fastRevive.enabled = !f.fastRevive.enabled;
+      render();
+      saveFeatures(f);
+    });
+  });
+
+  document.querySelectorAll('[data-marker-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.auth.me.features.marker.type = btn.getAttribute('data-marker-type');
+      render();
+      saveFeatures(state.auth.me.features);
+    });
+  });
+
+  const unbindBtn = document.getElementById('unbind-hwid-btn');
+  if (unbindBtn) {
+    unbindBtn.addEventListener('click', async () => {
+      if (!confirm('Unbind device lock?')) return;
+      await fetch('/api/unbind-hwid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: state.auth.key }) });
+      logout();
+    });
+  }
+
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('powerup_session');
-      state.auth.loggedIn = false;
-      location.reload();
-    });
+    logoutBtn.addEventListener('click', logout);
   }
 }
 
-// تشغيل الواجهة عند اكتمال التحميل
-document.addEventListener('DOMContentLoaded', () => {
-  const keyInput = document.getElementById('access-key-input');
-  const unlockBtn = document.getElementById('unlock-btn');
+async function saveFeatures(f) {
+  localStorage.setItem('powerup_session', JSON.stringify({ key: state.auth.key, me: state.auth.me, features: f }));
+  try {
+    await fetch('/api/features', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: f, key: state.auth.key }) });
+  } catch (e) {}
+}
 
-  if (unlockBtn) {
-    unlockBtn.addEventListener('click', async () => {
-      const val = keyInput ? keyInput.value.trim() : '';
-      if (!val) return;
+function logout() {
+  localStorage.removeItem('powerup_session');
+  state.auth.loggedIn = false;
+  state.auth.key = '';
+  location.reload();
+}
 
-      try {
-        const dev = await getRealClientDevice();
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: val, hwid: dev.hwid, device_model: dev.device_model, device_os: dev.device_os })
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok) {
-          state.auth.loggedIn = true;
-          state.auth.key = val;
-          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
-          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
-          location.reload();
-        } else {
-          alert(data.error || 'Invalid key');
-        }
-      } catch (err) {
-        alert('Network error');
-      }
-    });
-  }
-
-  if (state.auth.loggedIn) {
+// إذا كان مسجلاً للدخول بالفعل، قم بعرض اللوحة المطابقة فوراً
+if (state.auth.loggedIn) {
+  document.addEventListener('DOMContentLoaded', () => {
+    render();
+  });
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
     render();
   }
-});
+}
