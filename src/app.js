@@ -16,7 +16,8 @@ const state = {
       expires_at: null,
       features: JSON.parse(JSON.stringify(CONFIG.DEFAULT_FEATURES))
     }
-  }
+  },
+  happLoading: false
 };
 
 const savedSession = localStorage.getItem('powerup_session');
@@ -62,7 +63,7 @@ function renderDashboard() {
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- الشريط العلوي: مؤشر الاتصال يساراً، وزر الترجمة الدائري الموحد يميناً -->
+      <!-- الشريط العلوي: مؤشر الاتصال يساراً، وزر الترجمة الدائري يميناً -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #10b981;">
           <span style="height: 8px; width: 8px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981;"></span>
@@ -104,7 +105,7 @@ function renderStatusTab(me) {
 
       <div style="width: 100%; max-width: 320px;">
         <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
-          ${state.lang === 'ar' ? 'إضافة اشتراك' : 'ADD SUBSCRIPTION'}
+          ${state.happLoading ? 'CONNECTING...' : (state.lang === 'ar' ? 'إضافة اشتراك' : 'ADD SUBSCRIPTION')}
         </button>
       </div>
 
@@ -232,7 +233,7 @@ function renderBottomNav() {
   const tabs = [
     { id: 'status', label: state.lang === 'ar' ? 'الرئيسية' : 'HOME', icon: Icons.skull(18) },
     { id: 'features', label: state.lang === 'ar' ? 'الميزات' : 'FEATURES', icon: Icons.slidersHorizontal(18) },
-    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGE', icon: Icons.settings(18) }
+    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT', icon: Icons.settings(18) }
   ];
 
   return `
@@ -267,11 +268,30 @@ function attachDashboardEvents() {
     });
   }
 
+  // ربط زر ADD SUBSCRIPTION بنظام الـ VPN والنفق عبر /api/happ
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', () => {
-      // فتح رابط متجر جوجل أو افتراضي عند الضغط على زر إضافة اشتراك
-      window.open('https://play.google.com/store/apps/details?id=com.happproxy', '_blank');
+    happBtn.addEventListener('click', async () => {
+      state.happLoading = true;
+      renderDashboard();
+      try {
+        const res = await fetch('/api/happ', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: state.auth.key })
+        });
+        const data = await res.json();
+        if (data.ok && data.deepLink) {
+          window.location.href = data.deepLink;
+        } else {
+          window.open('https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215', '_blank');
+        }
+      } catch (e) {
+        window.open('https://play.google.com/store/apps/details?id=com.happproxy', '_blank');
+      } finally {
+        state.happLoading = false;
+        renderDashboard();
+      }
     });
   }
 
