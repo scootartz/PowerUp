@@ -5,6 +5,7 @@ import { Icons } from './icons.js';
 const state = {
   lang: localStorage.getItem('powerup_lang') || 'en',
   tab: 'status',
+  isConnected: localStorage.getItem('powerup_vpn_connected') === 'true',
   auth: {
     loggedIn: false,
     key: '',
@@ -32,11 +33,6 @@ if (savedSession) {
   } catch (e) {}
 }
 
-function t(key) {
-  const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
-  return dict[key] || TRANSLATIONS.en[key] || key;
-}
-
 function formatCountdown(targetIso) {
   if (!targetIso) return '3649d 23h';
   const diff = new Date(targetIso).getTime() - Date.now();
@@ -59,14 +55,19 @@ function renderDashboard() {
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.title = 'POWER UP — Client Portal';
 
+  const statusColor = state.isConnected ? '#10b981' : '#e50914';
+  const statusText = state.isConnected 
+    ? (state.lang === 'ar' ? 'متصل' : 'CONNECTED') 
+    : (state.lang === 'ar' ? 'غير متصل' : 'OFFLINE');
+
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- الشريط العلوي -->
+      <!-- الشريط العلوي: الحالة تتغير ديناميكياً -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #10b981;">
-          <span style="height: 8px; width: 8px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981;"></span>
-          ${state.lang === 'ar' ? 'متصل' : 'CONNECTED'}
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: ${statusColor};">
+          <span style="height: 8px; width: 8px; border-radius: 50%; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
+          ${statusText}
         </div>
         
         <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);" title="Change Language">
@@ -95,7 +96,7 @@ function renderStatusTab(me) {
     <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
       <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <!-- خانة المفتاح في منتصف الواجهة تماماً مع زر النسخ -->
+      <!-- خانة المفتاح في المنتصف تماماً -->
       <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
         <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-R2ZW-PEY6-7BKB'}</span>
         <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
@@ -137,7 +138,6 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
         <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;">
           ${markerTypes.map(type => `
             <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
@@ -152,7 +152,6 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
       </div>
 
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
@@ -162,7 +161,6 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
       </div>
 
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
@@ -172,7 +170,6 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
       </div>
 
       <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
@@ -182,7 +179,6 @@ function renderFeaturesTab(me) {
             <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
@@ -268,27 +264,18 @@ function attachDashboardEvents() {
     });
   }
 
-  // ربط زر ADD SUBSCRIPTION بنظام الـ VPN وتطبيق Happ
+  // زر ADD SUBSCRIPTION: يفتح تطبيق Happ VPN، يحول الحالة إلى CONNECTED فوراً، ويحفظها
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/happ', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: state.auth.key })
-        });
-        const data = await res.json();
-        if (data.ok && data.deepLink) {
-          window.location.href = data.deepLink;
-        } else {
-          const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
-          window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
-        }
-      } catch (e) {
-        const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
-        window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
-      }
+    happBtn.addEventListener('click', () => {
+      state.isConnected = true;
+      localStorage.setItem('powerup_vpn_connected', 'true');
+
+      const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+      const deepLink = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+      
+      window.location.href = deepLink;
+      renderDashboard();
     });
   }
 
@@ -350,7 +337,9 @@ async function saveFeatures(f) {
 
 function logout() {
   localStorage.removeItem('powerup_session');
+  localStorage.removeItem('powerup_vpn_connected');
   state.auth.loggedIn = false;
+  state.isConnected = false;
   state.auth.key = '';
   location.reload();
 }
