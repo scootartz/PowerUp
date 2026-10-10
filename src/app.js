@@ -267,27 +267,13 @@ function attachDashboardEvents() {
     });
   }
 
-  // الاتصال المباشر بتطبيق Happ VPN عبر الرابط العميق وتمرير مفتاح المستخدم
+  // الاستجابة الفورية لفتح تطبيق Happ VPN بالرابط العميق دون أي تعليق
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/happ', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: state.auth.key })
-        });
-        const data = await res.json();
-        if (data.ok && data.deepLink) {
-          window.location.href = data.deepLink;
-        } else {
-          const subUrl = `https://${window.location.host}/api/happ?key=${state.auth.key}`;
-          window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
-        }
-      } catch (e) {
-        const subUrl = `https://${window.location.host}/api/happ?key=${state.auth.key}`;
-        window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
-      }
+    happBtn.addEventListener('click', () => {
+      const subscriptionUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+      const deepLink = `happ://import?data=${encodeURIComponent(btoa(subscriptionUrl))}`;
+      window.location.href = deepLink;
     });
   }
 
