@@ -62,7 +62,7 @@ function renderDashboard() {
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- الشريط العلوي: مؤشر الاتصال يساراً، وزر الترجمة الدائري يميناً -->
+      <!-- الشريط العلوي: مؤشر الاتصال يساراً، وزر الترجمة الدائري الموحد يميناً -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: #10b981;">
           <span style="height: 8px; width: 8px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981;"></span>
