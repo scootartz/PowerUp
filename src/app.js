@@ -92,10 +92,11 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
+      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+      <!-- خانة المفتاح في منتصف الواجهة تماماً مع زر النسخ -->
+      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
         <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-R2ZW-PEY6-7BKB'}</span>
         <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
           ${Icons.copy(16)}
@@ -108,7 +109,7 @@ function renderStatusTab(me) {
         </button>
       </div>
 
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -4px;">
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
         ${state.lang === 'ar' ? 'ينتهي خلال' : 'EXPIRES IN'} <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
       </p>
     </div>
