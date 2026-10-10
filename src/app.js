@@ -167,30 +167,11 @@ function render() {
 
   let html = '';
 
-  html += `
-    <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#050505]">
-      <div class="absolute left-1/2 top-[-14%] h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-[#e50914]/[0.06] blur-[120px]"></div>
-      <div class="absolute bottom-[-18%] right-[-12%] h-[480px] w-[480px] rounded-full bg-[#e50914]/[0.04] blur-[120px]"></div>
-    </div>
-  `;
-
-  if (state.maintenance && state.maintenance.enabled) {
-    html += `
-      <div class="fixed inset-x-0 top-0 z-50 flex items-start justify-center gap-2 bg-[#fbbf24]/15 px-4 py-2.5 text-center text-[11px] text-[#fbbf24] backdrop-blur">
-        <span><span class="font-bold uppercase">${t('maintenance_title')}</span> · ${state.maintenance.message || t('maintenance_body')}</span>
-      </div>
-    `;
-  }
-
-  if (!state.auth.loggedIn) {
-    // إذا لم يكن مسجلاً للدخول، يتم ترك العرض لـ index.html الأساسي لتفادي أي تداخل
-    return;
-  } else {
+  if (state.auth.loggedIn) {
     html += renderDashboard();
+    root.innerHTML = html;
+    attachEvents();
   }
-
-  root.innerHTML = html;
-  attachEvents();
 }
 
 function renderDashboard() {
@@ -198,8 +179,6 @@ function renderDashboard() {
 
   return `
     <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6">
-      
-      <!-- Header مع زر اللغة الأحادي النظيف -->
       <div class="flex items-center justify-between gap-3 px-1 py-4">
         <div class="flex min-w-0 items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-white">
           <span class="h-2 w-2 shrink-0 rounded-full bg-[#10b981]"></span>
@@ -216,7 +195,6 @@ function renderDashboard() {
         ${state.tab === 'features' ? renderFeaturesTab(me) : ''}
         ${state.tab === 'manage' ? renderManageTab() : ''}
       </div>
-
     </main>
     ${renderBottomNav()}
   `;
@@ -363,53 +341,6 @@ function attachEvents() {
     });
   }
 
-  const keyInput = document.getElementById('key-input');
-  if (keyInput) {
-    keyInput.addEventListener('input', (e) => {
-      state.keyInput = formatKey(e.target.value);
-      keyInput.value = state.keyInput;
-      state.error = null;
-    });
-  }
-
-  const keyForm = document.getElementById('key-form');
-  if (keyForm) {
-    keyForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const val = state.keyInput.trim();
-      if (!val) { state.error = 'Enter your key'; render(); return; }
-
-      state.loading = true;
-      render();
-
-      try {
-        const devInfo = await getRealClientDevice();
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: val, hwid: devInfo.hwid, device_model: devInfo.device_model, device_os: devInfo.device_os })
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok) {
-          state.auth.loggedIn = true;
-          state.auth.key = val;
-          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
-          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me, features: state.auth.me.features }));
-          render();
-        } else {
-          state.error = data.error || 'Invalid key';
-          state.loading = false;
-          render();
-        }
-      } catch (err) {
-        state.error = 'Network error';
-        state.loading = false;
-        render();
-      }
-    });
-  }
-
   document.querySelectorAll('[data-nav-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.tab = btn.getAttribute('data-nav-tab');
@@ -462,9 +393,68 @@ function logout() {
   localStorage.removeItem('powerup_session');
   state.auth.loggedIn = false;
   state.auth.key = '';
-  render();
+  location.reload();
 }
 
-checkMaintenance();
-initSSE();
-render();
+// ربط زر الـ Unlock في واجهة تسجيل الدخول برمجياً
+document.addEventListener('DOMContentLoaded', () => {
+  const keyInput = document.getElementById('access-key-input');
+  const unlockBtn = document.getElementById('unlock-btn');
+
+  if (keyInput) {
+    keyInput.addEventListener('input', (e) => {
+      keyInput.value = formatKey(e.target.value);
+    });
+  }
+
+  if (unlockBtn) {
+    unlockBtn.addEventListener('click', async () => {
+      const val = keyInput ? keyInput.value.trim() : '';
+      if (!val) {
+        alert(state.lang === 'ar' ? 'الرجاء إدخال مفتاح الدخول' : 'Please enter your access key');
+        return;
+      }
+
+      unlockBtn.textContent = state.lang === 'ar' ? 'جاري التحقق...' : 'Authenticating...';
+      unlockBtn.disabled = true;
+
+      try {
+        const devInfo = await getRealClientDevice();
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            key: val, 
+            hwid: devInfo.hwid, 
+            device_model: devInfo.device_model, 
+            device_os: devInfo.device_os 
+          })
+        });
+        
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          state.auth.loggedIn = true;
+          state.auth.key = val;
+          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
+          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
+          location.reload();
+        } else {
+          alert(data.error || (state.lang === 'ar' ? 'المفتاح غير صحيح أو منتهي' : 'Invalid key'));
+          unlockBtn.textContent = state.lang === 'ar' ? 'فتح' : 'Unlock';
+          unlockBtn.disabled = false;
+        }
+      } catch (err) {
+        alert(state.lang === 'ar' ? 'خطأ في الاتصال بالسيرفر' : 'Network error');
+        unlockBtn.textContent = state.lang === 'ar' ? 'فتح' : 'Unlock';
+        unlockBtn.disabled = false;
+      }
+    });
+  }
+
+  checkMaintenance();
+  initSSE();
+  if (state.auth.loggedIn) {
+    render();
+  }
+});
