@@ -16,8 +16,7 @@ const state = {
       expires_at: null,
       features: JSON.parse(JSON.stringify(CONFIG.DEFAULT_FEATURES))
     }
-  },
-  happLoading: false
+  }
 };
 
 const savedSession = localStorage.getItem('powerup_session');
@@ -105,7 +104,7 @@ function renderStatusTab(me) {
 
       <div style="width: 100%; max-width: 320px;">
         <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
-          ${state.happLoading ? 'CONNECTING...' : (state.lang === 'ar' ? 'إضافة اشتراك' : 'ADD SUBSCRIPTION')}
+          ${state.lang === 'ar' ? 'إضافة اشتراك' : 'ADD SUBSCRIPTION'}
         </button>
       </div>
 
@@ -268,30 +267,18 @@ function attachDashboardEvents() {
     });
   }
 
-  // ربط زر ADD SUBSCRIPTION بنظام الـ VPN والنفق عبر /api/happ
+  // الاستجابة الفورية لزر ADD SUBSCRIPTION لفتح تطبيق Happ VPN أو المتجر فوراً بدون تعليق
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', async () => {
-      state.happLoading = true;
-      renderDashboard();
-      try {
-        const res = await fetch('/api/happ', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: state.auth.key })
-        });
-        const data = await res.json();
-        if (data.ok && data.deepLink) {
-          window.location.href = data.deepLink;
-        } else {
-          window.open('https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215', '_blank');
-        }
-      } catch (e) {
+    happBtn.addEventListener('click', () => {
+      const encodedData = btoa(JSON.stringify({ key: state.auth.key, server: 'powerup-tunnel' }));
+      const deepLink = `happ://import?data=${encodeURIComponent(encodedData)}`;
+      
+      window.location.href = deepLink;
+      
+      setTimeout(() => {
         window.open('https://play.google.com/store/apps/details?id=com.happproxy', '_blank');
-      } finally {
-        state.happLoading = false;
-        renderDashboard();
-      }
+      }, 1500);
     });
   }
 
