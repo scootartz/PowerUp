@@ -72,7 +72,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { error: 'enter your full key' });
     }
 
-    const clientHwid = (body.hwid || '').trim() || 'PWUP-J74D-ZFRQ';
+    const clientHwid = (body.hwid || '').trim() || 'PWUP-WKZF-LMXY';
     let keyRecord = db.findKey(key);
 
     if (!keyRecord) {
@@ -122,7 +122,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/happ') {
-    const key = searchParams.get('key') || 'PWUP-J74D-ZFRQ';
+    const key = searchParams.get('key') || 'PWUP-WKZF-LMXY';
     const hostDomain = req.headers.host || 'localhost';
 
     const configData = {
