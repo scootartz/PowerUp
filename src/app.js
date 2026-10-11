@@ -33,7 +33,6 @@ if (savedSession) {
   } catch (e) {}
 }
 
-// تعديل العداد ليظهر بالأيام والـ ساعات بدقة (مثل 3649d 18h)
 function formatCountdown(targetIso) {
   if (!targetIso) return '3649d 18h';
   const diff = new Date(targetIso).getTime() - Date.now();
@@ -73,8 +72,8 @@ function renderDashboard() {
         </button>
       </div>
 
-      <!-- محتوى التبويبات -->
-      <div style="width: 100%; max-width: 400px; margin: auto 0; display: flex; flex-direction: column; align-items: center;">
+      <!-- محتوى التبويبات (متمركز تماماً) -->
+      <div style="width: 100%; max-width: 400px; margin: auto 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
         ${state.tab === 'status' ? renderStatusTab(state.auth.me) : ''}
         ${state.tab === 'features' ? renderFeaturesTab(state.auth.me) : ''}
         ${state.tab === 'manage' ? renderManageTab() : ''}
@@ -91,10 +90,10 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center;">
-      <img src="logo.png" alt="AIMHACK" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
+      <img src="logo.png" alt="AIMHACK" style="max-width: 190px; width: 100%; height: auto; object-fit: contain; margin: 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <!-- خانة المفتاح في المنتصف تماماً ودائرية الأطراف -->
+      <!-- خانة المفتاح في المنتصف تماماً وبشكل دائري متناسق مثل صورة AimHack -->
       <div style="width: 100%; max-width: 310px; background: #0a0a0a; border: 1px solid #222222; border-radius: 30px; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 0 auto;">
         <span style="font-size: 11.5px; font-weight: 700; letter-spacing: 1.5px; color: #cccccc; margin: 0 auto;">${state.auth.key || 'AMHK-80E1-9AB2-12A8'}</span>
         <button id="copy-key-btn" style="background: transparent; border: none; color: #888888; cursor: pointer; display: flex; align-items: center; padding-left: 8px;">
@@ -108,7 +107,7 @@ function renderStatusTab(me) {
         </button>
       </div>
 
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #777777; margin-top: -6px;">
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #777777; margin: 0;">
         EXPIRES IN <span style="color: #cccccc; font-weight: 700;">${expiresText}</span>
       </p>
     </div>
@@ -269,7 +268,6 @@ function attachDashboardEvents() {
     });
   }
 
-  // ربط زر ADD SUBSCRIPTION بجلب التكوين الحقيقي من الخادم وتحديث حالة الاتصال وتوجيه التطبيق
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
     happBtn.addEventListener('click', async () => {
