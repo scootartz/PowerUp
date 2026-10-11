@@ -34,7 +34,7 @@ if (savedSession) {
 }
 
 function formatCountdown(targetIso) {
-  if (!targetIso) return '3649D 18H';
+  if (!targetIso) return '87594H 33M';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
@@ -60,7 +60,6 @@ function renderDashboard() {
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- الشريط العلوي للحالة -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: ${statusColor};">
           <span style="height: 8px; width: 8px; border-radius: 50%; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
@@ -72,14 +71,12 @@ function renderDashboard() {
         </button>
       </div>
 
-      <!-- محتوى التبويبات -->
       <div style="width: 100%; max-width: 400px; margin: auto 0; display: flex; flex-direction: column; align-items: center;">
         ${state.tab === 'status' ? renderStatusTab(state.auth.me) : ''}
         ${state.tab === 'features' ? renderFeaturesTab(state.auth.me) : ''}
         ${state.tab === 'manage' ? renderManageTab() : ''}
       </div>
 
-      <!-- شريط التنقل السفلي -->
       ${renderBottomNav()}
     </div>
   `;
@@ -91,12 +88,10 @@ function renderStatusTab(me) {
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
-      <!-- تم تعديل مسار الشعار هنا ليكون صحيحاً عبر الجذر -->
-      <img src="/logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.src='logo.png';" />
+      <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" />
 
-      <!-- خانة المفتاح في المنتصف تماماً -->
       <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-J74D-ZFRQ-XNBJ'}</span>
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-WKZF-LMXY-EH3Y'}</span>
         <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
           ${Icons.copy(16)}
         </button>
@@ -118,7 +113,7 @@ function renderStatusTab(me) {
 function renderFeaturesTab(me) {
   const f = me.features || {};
   const marker = f.marker || { enabled: true, type: 'Phantom' };
-  const aimpoint = f.aimpoint || { enabled: false };
+  const aimpoint = f.aimpoint || { enabled: true };
   const aimLag = f.aimLag || { enabled: false };
 
   const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
