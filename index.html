@@ -1,237 +1,471 @@
-<!DOCTYPE html>
-<html lang="en" id="html-root" dir="ltr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>POWER UP — Client Portal</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
-  
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+import { CONFIG } from './config.js';
+import { TRANSLATIONS } from './translations.js';
+import { Icons } from './icons.js';
 
-    body {
-      background-color: #050505;
-      color: #cacaca;
-      font-family: 'JetBrains Mono', monospace, sans-serif;
-      min-height: 100vh;
-      width: 100vw;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
+// State Store
+const state = {
+  lang: localStorage.getItem('powerup_lang') || 'en',
+  isLangOpen: false,
+  tab: 'status', // 'status' | 'features' | 'manage'
+  manageSubView: 'list', // 'list' | 'notes' | 'guide'
+  auth: {
+    loggedIn: false,
+    key: '',
+    me: {
+      status: 'active',
+      bound_hwid: null,
+      device_model: null,
+      device_os: null,
+      expires_at: null,
+      features: JSON.parse(JSON.stringify(CONFIG.DEFAULT_FEATURES))
     }
+  },
+  keyInput: '',
+  loading: false,
+  error: null,
+  maintenance: {
+    enabled: false,
+    blocked: false,
+    title: 'maintenance',
+    message: "we're doing maintenance. everything is paused until we're back."
+  },
+  happLoading: false,
+  happError: null,
+  timerInterval: null
+};
 
-    .top-bar {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      right: 20px;
-      display: flex;
-      justify-content: flex-start;
-      z-index: 10;
+// Check local storage session
+const savedSession = localStorage.getItem('powerup_session');
+if (savedSession) {
+  try {
+    const parsed = JSON.parse(savedSession);
+    if (parsed.key) {
+      state.auth.loggedIn = true;
+      state.auth.key = parsed.key;
+      if (parsed.me) state.auth.me = { ...state.auth.me, ...parsed.me };
+      if (parsed.features) state.auth.me.features = { ...state.auth.me.features, ...parsed.features };
     }
+  } catch (e) {}
+}
 
-    #html-root[dir="rtl"] .top-bar { justify-content: flex-end; }
+// Translation helper
+function t(key) {
+  const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
+  return dict[key] || TRANSLATIONS.en[key] || key;
+}
 
-    .lang-btn {
-      background: #121212;
-      color: #dddddd;
-      border: 1px solid #2a2a2a;
-      border-radius: 10px;
-      padding: 8px 16px;
-      font-size: 12px;
-      cursor: pointer;
-      font-weight: 700;
-    }
+// Real Hardware Fingerprinting & Actual Device Identification
+async function getRealClientDevice() {
+  const ua = navigator.userAgent || '';
+  let os = 'Unknown OS';
+  let deviceName = 'Unknown Device';
 
-    #app {
-      width: 100%;
-      max-width: 380px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+  if (/Windows NT 10.0/i.test(ua)) os = 'Windows 10/11';
+  else if (/iPhone/i.test(ua)) os = 'iOS';
+  else if (/iPad/i.test(ua)) os = 'iPadOS';
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS';
+  else if (/Android/i.test(ua)) {
+    const m = ua.match(/Android (\d+(\.\d+)?)/);
+    os = m ? `Android ${m[1]}` : 'Android';
+  } else if (/Linux/i.test(ua)) os = 'Linux';
 
-    .main-card {
-      background: #09090b;
-      border: 1px solid #1f1f23;
-      border-radius: 28px;
-      padding: 32px 20px;
-      width: 100%;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .brand-logo-img {
-      max-width: 190px;
-      width: 100%;
-      height: auto;
-      margin-bottom: 20px;
-      object-fit: contain;
-      filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));
-    }
-
-    .sub-description {
-      font-size: 11.5px;
-      color: #71717a;
-      margin-bottom: 24px;
-      letter-spacing: 0.5px;
-    }
-
-    .input-label {
-      font-size: 11px;
-      color: #a1a1aa;
-      margin-bottom: 8px;
-      display: block;
-      font-weight: 700;
-      text-align: left;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      width: 100%;
-    }
-
-    .input-wrapper {
-      position: relative;
-      display: flex;
-      align-items: center;
-      background: #050505;
-      border: 1px solid #27272a;
-      border-radius: 16px;
-      padding: 6px;
-      margin-bottom: 24px;
-      width: 100%;
-    }
-
-    .input-wrapper:focus-within { border-color: #e50914; }
-
-    .paste-btn {
-      background: #18181b;
-      color: #d4d4d8;
-      border: none;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-size: 11px;
-      cursor: pointer;
-      font-weight: 700;
-      font-family: inherit;
-      flex-shrink: 0;
-    }
-
-    .key-input {
-      width: 100%;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #ffffff;
-      font-family: inherit;
-      font-size: 11.5px;
-      padding: 8px;
-      text-align: center;
-      font-weight: 600;
-      letter-spacing: 1.5px;
-    }
-
-    .btn-unlock {
-      width: 100%;
-      background: #e50914;
-      border: none;
-      border-radius: 16px;
-      padding: 16px;
-      color: #ffffff;
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-      box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);
-      margin-bottom: 20px;
-      transition: opacity 0.2s;
-    }
-
-    .btn-unlock:active { opacity: 0.85; }
-
-    .footer-text {
-      font-size: 10.5px;
-      color: #52525b;
-      line-height: 1.6;
-    }
-  </style>
-</head>
-<body>
-
-  <div class="top-bar">
-    <button type="button" class="lang-btn" id="lang-toggle-btn" onclick="toggleLanguage()">English</button>
-  </div>
-
-  <div id="app">
-    <div class="main-card">
-      <img src="logo.png" alt="POWER UP" class="brand-logo-img" onerror="this.onerror=null; this.style.display='none';" />
-
-      <p class="sub-description" id="text-desc">No account, no password. Your key only.</p>
-
-      <span class="input-label" id="text-label">Access Key</span>
-      <div class="input-wrapper">
-        <button type="button" class="paste-btn" id="paste-btn">Paste</button>
-        <input 
-          type="text" 
-          id="access-key-input" 
-          class="key-input" 
-          placeholder="PWUP-XXXX-XXXX-XXXX" 
-          autocomplete="off" 
-          spellcheck="false" 
-          maxlength="19"
-        />
-      </div>
-
-      <button type="button" class="btn-unlock" id="unlock-btn">Unlock</button>
-
-      <p class="footer-text" id="text-footer">
-        No key? Contact your seller.<br>
-        <span id="text-subfooter">Time starts upon connection.</span>
-      </p>
-    </div>
-  </div>
-
-  <script type="module" src="src/app.js"></script>
-
-  <script>
-    let currentLang = 'en';
-    function toggleLanguage() {
-      const htmlRoot = document.getElementById('html-root');
-      const langBtn = document.getElementById('lang-toggle-btn');
-      if (currentLang === 'en') {
-        currentLang = 'ar';
-        htmlRoot.setAttribute('dir', 'rtl');
-        htmlRoot.setAttribute('lang', 'ar');
-        langBtn.textContent = 'عربي';
-      } else {
-        currentLang = 'en';
-        htmlRoot.setAttribute('dir', 'ltr');
-        htmlRoot.setAttribute('lang', 'en');
-        langBtn.textContent = 'English';
+  let gpuRenderer = '';
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (gl) {
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        const raw = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+        gpuRenderer = raw.replace(/ANGLE \(\vert{}, Direct3D.*\vert{}\)/g, '').trim();
       }
     }
+  } catch (e) {}
 
-    document.getElementById('paste-btn').addEventListener('click', async () => {
+  if (/Android/i.test(ua)) {
+    const modelMatch = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
+    const model = modelMatch ? modelMatch[1].trim() : 'Android Device';
+    deviceName = `${model} (${os})`;
+  } else if (/Windows/i.test(ua)) {
+    deviceName = gpuRenderer ? `Windows PC (${gpuRenderer})` : `Windows PC (${os})`;
+  } else {
+    deviceName = `${os} Device`;
+  }
+
+  let hwid = localStorage.getItem('powerup_hwid');
+  if (!hwid) {
+    const seed = (navigator.platform || '') + (navigator.hardwareConcurrency || 4) + gpuRenderer;
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h) + seed.charCodeAt(i);
+      h |= 0;
+    }
+    hwid = `PWUP-${Math.abs(h).toString(16).padStart(8, '0').slice(0, 8).toUpperCase()}`;
+    localStorage.setItem('powerup_hwid', hwid);
+  }
+
+  return { hwid, device_model: deviceName, device_os: os };
+}
+
+function formatKey(val) {
+  return (
+    val
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 19)
+      .match(/.{1,4}/g) ?? []
+  ).join('-');
+}
+
+function formatCountdown(targetIso) {
+  if (!targetIso) return '3649D 18H';
+  const diff = new Date(targetIso).getTime() - Date.now();
+  if (diff <= 0) return 'EXPIRED';
+  const sec = Math.floor(diff / 1000);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const mins = Math.floor((sec % 3600) / 60);
+  if (days > 0) return `${days}D ${hours}H`;
+  if (hours > 0) return `${hours}H ${mins}M`;
+  return `${mins}M`;
+}
+
+async function checkMaintenance() {
+  try {
+    const res = await fetch('/api/maintenance');
+    if (res.ok) {
+      state.maintenance = await res.json();
+      render();
+    }
+  } catch (e) {}
+}
+
+function initSSE() {
+  try {
+    const es = new EventSource('/api/events');
+    es.addEventListener('maintenance', (e) => {
+      try {
+        state.maintenance = JSON.parse(e.data);
+        render();
+      } catch (err) {}
+    });
+    es.addEventListener('logout', (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (!d.key || d.key === state.auth.key) logout();
+      } catch (err) {}
+    });
+  } catch (e) {}
+}
+
+function render() {
+  const root = document.getElementById('app');
+  if (!root) return;
+
+  const isRtl = state.lang === 'ar';
+  document.documentElement.setAttribute('lang', state.lang);
+  document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
+  document.title = 'POWER UP — Client Portal';
+
+  let html = '';
+
+  if (state.maintenance && state.maintenance.enabled) {
+    html += `
+      <div class="fixed inset-x-0 top-0 z-50 flex items-start justify-center gap-2 bg-[#fbbf24]/15 px-4 py-2.5 text-center text-[11px] text-[#fbbf24] backdrop-blur">
+        <span><span class="font-bold uppercase">${t('maintenance_title')}</span> · ${state.maintenance.message || t('maintenance_body')}</span>
+      </div>
+    `;
+  }
+
+  if (!state.auth.loggedIn) {
+    html += renderKeyGate();
+  } else {
+    html += renderDashboard();
+  }
+
+  root.innerHTML = html;
+  attachEvents();
+}
+
+function renderKeyGate() {
+  return `
+    <main class="relative flex min-h-dvh flex-col items-center justify-center px-6 w-full" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;">
+      <div class="main-card" style="background: #09090b; border: 1px solid #1f1f23; border-radius: 28px; padding: 32px 20px; width: 100%; max-width: 380px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8); text-align: center; display: flex; flex-direction: column; align-items: center;">
+        
+        <img src="logo.png" alt="POWER UP" style="max-width: 190px; width: 100%; height: auto; margin-bottom: 20px; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
+
+        <p class="sub-description" style="font-size: 11.5px; color: #71717a; margin-bottom: 24px; letter-spacing: 0.5px;">No account, no password. Your key only.</p>
+        
+        <form id="key-form" class="flex w-full flex-col gap-3" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+          <span class="input-label" style="font-size: 11px; color: #a1a1aa; margin-bottom: 8px; display: block; font-weight: 700; text-align: left; text-transform: uppercase; letter-spacing: 1.5px; width: 100%;">Access Key</span>
+          
+          <div class="input-wrapper" style="position: relative; display: flex; align-items: center; background: #050505; border: 1px solid #27272a; border-radius: 16px; padding: 6px; margin-bottom: 24px; width: 100%;">
+            <button type="button" id="paste-btn" class="paste-btn" style="background: #18181b; color: #d4d4d8; border: none; border-radius: 12px; padding: 10px 14px; font-size: 11px; cursor: pointer; font-weight: 700; font-family: inherit; flex-shrink: 0;">Paste</button>
+            <input 
+              id="key-input"
+              type="text"
+              placeholder="PWUP-XXXX-XXXX-XXXX" 
+              spellcheck="false" 
+              autocomplete="off" 
+              autofocus 
+              class="key-input" 
+              style="width: 100%; background: transparent; border: none; outline: none; color: #ffffff; font-family: inherit; font-size: 11.5px; padding: 8px; text-align: center; font-weight: 600; letter-spacing: 1.5px;"
+              value="${state.keyInput}"
+              maxlength="19"
+            />
+          </div>
+          
+          ${state.error ? `<p class="text-center text-xs text-[#e50914]" style="color: #e50914; font-size: 12px; margin-bottom: 12px;">${state.error}</p>` : ''}
+          
+          <button type="submit" class="btn-unlock" style="width: 100%; background: #e50914; border: none; border-radius: 16px; padding: 16px; color: #ffffff; font-family: inherit; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3); margin-bottom: 20px;" ${state.loading ? 'disabled' : ''}>
+            ${state.loading ? 'Authenticating...' : 'Unlock'}
+          </button>
+        </form>
+      </div>
+      
+      <p class="footer-text" style="font-size: 10.5px; color: #52525b; line-height: 1.6; text-align: center; margin-top: 20px;">No key? Contact your seller.<br/>Time starts upon connection.</p>
+    </main>
+  `;
+}
+
+function renderDashboard() {
+  const me = state.auth.me;
+  const expiresCountdown = formatCountdown(me.expires_at);
+
+  return `
+    <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6 w-full items-center">
+      
+      <div class="flex w-full items-center justify-between px-1 py-4">
+        <div class="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[2px] text-[#10b981]">
+          <span class="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
+          CONNECTED
+        </div>
+        
+        <button id="lang-btn" class="flex h-10 w-10 items-center justify-center rounded-full bg-[#0a0a0a] border border-[#1f1f1f] text-[#ccc]">
+          ${Icons.languages(18)}
+        </button>
+      </div>
+
+      <div class="flex flex-1 flex-col items-center justify-center w-full my-auto text-center gap-5">
+        <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
+
+        <div class="w-full max-w-[320px] bg-[#0a0a0a] border border-[#1f1f1f] rounded-[20px] p-3.5 flex justify-between items-center box-sizing">
+          <span class="text-[12px] font-bold tracking-[1.5px] text-[#ddd] mx-auto">${state.auth.key}</span>
+          <button id="copy-key-btn" class="bg-transparent border-none text-[#777] cursor-pointer">${Icons.copy(16)}</button>
+        </div>
+
+        <div class="w-full max-w-[320px]">
+          <button id="happ-btn" class="w-full bg-[#e50914] text-white border-none rounded-[16px] p-4 text-[13px] font-extrabold tracking-[2px] uppercase cursor-pointer shadow-[0_8px_24px_rgba(229,9,20,0.25)]">
+            ADD SUBSCRIPTION
+          </button>
+        </div>
+
+        <p class="text-[11px] uppercase tracking-[2px] text-[#666]">
+          EXPIRES IN <span class="text-white font-bold">${expiresCountdown}</span>
+        </p>
+      </div>
+
+    </main>
+    ${renderBottomNav()}
+  `;
+}
+
+function renderFeaturesTab(me) {
+  const f = me.features || {};
+  const marker = f.marker || { enabled: true, type: 'Power' };
+  const aimpoint = f.aimpoint || { enabled: false };
+  const aimLag = f.aimLag || { enabled: false };
+  const gloo = f.gloo || { enabled: false };
+  const fastRevive = f.fastRevive || { enabled: false };
+
+  return `
+    <div class="flex flex-col gap-4">
+      <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">FEATURES</div>
+
+      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Marker Type</span>
+          <button type="button" data-toggle="marker" class="relative h-6 w-11 rounded-full transition-colors ${marker.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${marker.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="feat-desc text-[11px] text-[#777] mt-2">Marks every enemy on your screen. Pick the mark you see.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          ${CONFIG.MARKER_TYPES.map(type => `
+            <button data-marker-type="${type}" class="rounded-xl px-3 py-1.5 text-xs transition-colors ${marker.type === type ? 'bg-[#e50914] font-bold text-white' : 'bg-white/[0.04] text-[#8a8a8e] hover:text-white'}">${type}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Aimpoint (Neck Lock)</span>
+          <button type="button" data-toggle="aimpoint" class="relative h-6 w-11 rounded-full transition-colors ${aimpoint.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimpoint.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="feat-desc text-[11px] text-[#777] mt-2">Moves your aim assist from the chest to the neck.</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderManageTab() {
+  return `
+    <div class="flex flex-1 flex-col gap-3">
+      <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">Management</div>
+
+      <button id="unbind-hwid-btn" class="w-full text-left cursor-pointer">
+        <div class="card flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+          <span class="text-sm text-white">Reset Device Lock (Unbind HWID)</span>
+        </div>
+      </button>
+
+      <div class="mt-auto pt-6">
+        <button id="logout-btn" class="w-full text-left cursor-pointer">
+          <div class="card flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#e50914]/30 rounded-2xl">
+            <span class="text-sm text-[#e50914] font-bold">Log out</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBottomNav() {
+  const tabs = [
+    { id: 'status', label: t('nav_home'), icon: Icons.skull(18) },
+    { id: 'features', label: t('nav_features'), icon: Icons.slidersHorizontal(18) },
+    { id: 'manage', label: t('nav_manage'), icon: Icons.settings(18) }
+  ];
+
+  return `
+    <nav class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-3">
+      <div class="pointer-events-auto flex items-stretch gap-1.5 rounded-[24px] bg-[#0a0a0a]/95 border border-[#1f1f1f] p-1.5 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+        ${tabs.map(item => `
+          <button data-nav-tab="${item.id}" class="flex w-[84px] flex-col items-center justify-center gap-1 rounded-[18px] py-2.5 transition-all cursor-pointer ${state.tab === item.id ? 'bg-[#1a1a1a] border border-[#333] text-white font-bold' : 'text-[#777]'}">
+            ${item.icon}
+            <span class="text-[9px] uppercase tracking-[1px] font-extrabold">${item.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </nav>
+  `;
+}
+
+function attachEvents() {
+  const keyInput = document.getElementById('key-input');
+  if (keyInput) {
+    keyInput.addEventListener('input', (e) => {
+      state.keyInput = formatKey(e.target.value);
+      keyInput.value = state.keyInput;
+      state.error = null;
+    });
+  }
+
+  const pasteBtn = document.getElementById('paste-btn');
+  if (pasteBtn && keyInput) {
+    pasteBtn.addEventListener('click', async () => {
       try {
         const text = await navigator.clipboard.readText();
         if (text) {
-          document.getElementById('access-key-input').value = text.trim();
+          state.keyInput = formatKey(text);
+          keyInput.value = state.keyInput;
+        }
+      } catch (e) {}
+    });
+  }
+
+  const keyForm = document.getElementById('key-form');
+  if (keyForm) {
+    keyForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = state.keyInput.trim();
+      if (!val) { state.error = 'Enter your key'; render(); return; }
+
+      state.loading = true;
+      render();
+
+      try {
+        const devInfo = await getRealClientDevice();
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: val, hwid: devInfo.hwid, device_model: devInfo.device_model, device_os: devInfo.device_os })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          state.auth.loggedIn = true;
+          state.auth.key = val;
+          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
+          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
+        } else {
+          state.error = data.error || 'Invalid key';
         }
       } catch (err) {
-        alert('Please allow clipboard permission');
+        state.error = 'Network error';
+      } finally {
+        state.loading = false;
+        render();
       }
     });
-  </script>
-</body>
-</html>
+  }
+
+  const copyKeyBtn = document.getElementById('copy-key-btn');
+  if (copyKeyBtn) {
+    copyKeyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(state.auth.key);
+      alert('Key copied successfully');
+    });
+  }
+
+  const happBtn = document.getElementById('happ-btn');
+  if (happBtn) {
+    happBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch(`/api/happ?key=${encodeURIComponent(state.auth.key)}`);
+        const data = await res.json();
+        if (data.deepLink) {
+          window.location.href = data.deepLink;
+        } else {
+          const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+          window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+        }
+      } catch (e) {
+        const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+        window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-nav-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.tab = btn.getAttribute('data-nav-tab');
+      render();
+    });
+  });
+
+  const unbindBtn = document.getElementById('unbind-hwid-btn');
+  if (unbindBtn) {
+    unbindBtn.addEventListener('click', async () => {
+      if (!confirm('Unbind device lock?')) return;
+      await fetch('/api/unbind-hwid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: state.auth.key }) });
+      logout();
+    });
+  }
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+}
+
+function logout() {
+  localStorage.removeItem('powerup_session');
+  state.auth.loggedIn = false;
+  state.auth.key = '';
+  render();
+}
+
+checkMaintenance();
+initSSE();
+render();
