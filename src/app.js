@@ -33,15 +33,17 @@ if (savedSession) {
   } catch (e) {}
 }
 
+// تعديل العداد ليظهر بالأيام والـ ساعات بدقة (مثل 3649d 18h)
 function formatCountdown(targetIso) {
-  if (!targetIso) return '2h 38m';
+  if (!targetIso) return '3649d 18h';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
-  const hours = Math.floor(sec / 3600);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  if (days > 0) return `${days}d ${hours}h`;
   const mins = Math.floor((sec % 3600) / 60);
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  return `${hours}h ${mins}m`;
 }
 
 function renderDashboard() {
@@ -92,7 +94,7 @@ function renderStatusTab(me) {
     <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center;">
       <img src="logo.png" alt="AIMHACK" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-      <!-- خانة المفتاح المضبوطة تماماً مثل الصورة المطلوبة (دائرية الأطراف وبشكل متناسق في المنتصف) -->
+      <!-- خانة المفتاح في المنتصف تماماً ودائرية الأطراف -->
       <div style="width: 100%; max-width: 310px; background: #0a0a0a; border: 1px solid #222222; border-radius: 30px; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 0 auto;">
         <span style="font-size: 11.5px; font-weight: 700; letter-spacing: 1.5px; color: #cccccc; margin: 0 auto;">${state.auth.key || 'AMHK-80E1-9AB2-12A8'}</span>
         <button id="copy-key-btn" style="background: transparent; border: none; color: #888888; cursor: pointer; display: flex; align-items: center; padding-left: 8px;">
@@ -267,25 +269,27 @@ function attachDashboardEvents() {
     });
   }
 
+  // ربط زر ADD SUBSCRIPTION بجلب التكوين الحقيقي من الخادم وتحديث حالة الاتصال وتوجيه التطبيق
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', () => {
+    happBtn.addEventListener('click', async () => {
       state.isConnected = true;
       localStorage.setItem('powerup_vpn_connected', 'true');
 
-      const configObj = {
-        version: "1.7",
-        client: "POWER UP",
-        key: state.auth.key,
-        routing: {
-          rules: [{ domain_suffix: ["freefiremobile.com", "garena.com"], outbound: "powerup-tunnel" }]
+      try {
+        const res = await fetch(`/api/happ?key=${encodeURIComponent(state.auth.key)}`);
+        const data = await res.json();
+        if (data.deepLink) {
+          window.location.href = data.deepLink;
+        } else {
+          const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+          window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
         }
-      };
+      } catch (e) {
+        const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+        window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+      }
 
-      const encodedData = btoa(JSON.stringify(configObj));
-      const deepLink = `happ://import?data=${encodeURIComponent(encodedData)}`;
-      
-      window.location.href = deepLink;
       renderDashboard();
     });
   }
