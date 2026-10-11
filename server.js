@@ -15,6 +15,9 @@ interceptor.setFeatures(db.get().global_features);
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
 
+// كلمة مرور الأدمن (يمكن التحكم بها عبر متغيرات البيئة أو استخدام القيمة الافتراضية)
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'powerup-admin-2026';
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -118,6 +121,20 @@ function detectServerDevice(ua = '') {
   return { os, model };
 }
 
+// دالة التحقق من صلاحية الأدمن عبر HTTP Basic Auth
+function isAdminAuthorized(req) {
+  const auth = req.headers['authorization'];
+  if (!auth) return false;
+  const [type, creds] = auth.split(' ');
+  if (type !== 'Basic') return false;
+  const decoded = Buffer.from(creds, 'base64').toString();
+  const colonIndex = decoded.indexOf(':');
+  if (colonIndex === -1) return false;
+  const user = decoded.slice(0, colonIndex);
+  const pass = decoded.slice(colonIndex + 1);
+  return user === 'admin' && pass === ADMIN_PASSWORD;
+}
+
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
@@ -131,6 +148,17 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  // ==========================================
+  // حماية لوحة التحكم ومسارات الأدمن
+  // ==========================================
+  if (pathname.startsWith('/api/admin/') || pathname === '/admin' || pathname === '/admin/') {
+    if (!isAdminAuthorized(req)) {
+      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Admin Panel"' });
+      res.end('Unauthorized');
+      return;
+    }
   }
 
   // ==========================================
@@ -483,7 +511,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ==========================================
-  // STATIC ASSET & PAGE ROUTING (مُعدل ليقرا أي ملف أو صورة من public تلقائياً)
+  // STATIC ASSET & PAGE ROUTING
   // ==========================================
   let filePath;
 
@@ -496,7 +524,6 @@ const server = http.createServer(async (req, res) => {
   } else if (pathname.startsWith('/src/')) {
     filePath = path.join(ROOT_DIR, pathname);
   } else {
-    // التوجيه التلقائي الذكي لأي ملف أو صورة داخل مجلد public (مثل logo.png، icon.png وغيرها)
     const cleanPath = pathname.startsWith('/') ? pathname.slice(1) : pathname;
     const pubPath = path.join(ROOT_DIR, 'public', cleanPath);
     const rootPath = path.join(ROOT_DIR, cleanPath);
@@ -504,7 +531,7 @@ const server = http.createServer(async (req, res) => {
     if (cleanPath === '' || cleanPath === 'index.html') {
       filePath = path.join(ROOT_DIR, 'index.html');
     } else if (fs.existsSync(pubPath)) {
-      filePath = pubPath; // يقرأ logo.png أو أي صورة أخرى من مجلد public مباشرة
+      filePath = pubPath;
     } else if (fs.existsSync(rootPath)) {
       filePath = rootPath;
     } else {
@@ -538,4 +565,3 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`👉 Admin Panel:   http://localhost:${PORT}/admin`);
   console.log(`==============================================\n`);
 });
-
