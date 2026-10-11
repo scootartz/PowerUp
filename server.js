@@ -6,7 +6,10 @@ const db = require('./data/db');
 const interceptor = require('./src/engine/packet_interceptor');
 const gameTunnel = require('./src/engine/game_tunnel');
 
+// Start active UDP game tunnel
 gameTunnel.start();
+
+// Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
 const PORT = process.env.PORT || 3000;
@@ -25,6 +28,19 @@ const MIME_TYPES = {
   '.woff': 'font/woff',
   '.ttf': 'font/ttf'
 };
+
+// SSE Clients set
+const sseClients = new Set();
+
+function broadcastEvent(eventName, data) {
+  for (const client of sseClients) {
+    try {
+      client.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -54,11 +70,27 @@ function generateRandomKey(prefix = 'PWUP') {
   return `${prefix}-${chunk()}-${chunk()}-${chunk()}`;
 }
 
+function detectServerDevice(ua = '') {
+  let os = 'Unknown OS';
+  let model = 'Unknown Device';
+
+  if (/Windows NT 10.0/i.test(ua)) {
+    os = 'Windows 10/11 64-bit';
+    model = 'Windows PC';
+  } else if (/Android/i.test(ua)) {
+    const v = ua.match(/Android (\d+(\.\d+)?)/);
+    os = v ? `Android ${v[1]}` : 'Android';
+    model = 'Android Device';
+  }
+
+  return { os, model };
+}
+
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
-  const searchParams = parsedUrl.searchParams;
 
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -69,7 +101,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 1. Redeem API (التحقق من المفتاح وحفظه بقاعدة البيانات)
+  // ==========================================
+  // CLIENT API ENDPOINTS
+  // ==========================================
+
+  if (pathname === '/api/maintenance' && req.method === 'GET') {
+    return sendJson(res, 200, db.getMaintenance());
+  }
+
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -79,7 +118,12 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { error: 'enter your full key' });
     }
 
-    const clientHwid = (body.hwid || '').trim() || 'PWUP-J74D-ZFRQ';
+    const ua = req.headers['user-agent'] || '';
+    const serverDev = detectServerDevice(ua);
+    const clientHwid = (body.hwid || '').trim() || `PWUP-${crypto.createHash('md5').update(ua + (req.socket.remoteAddress || '')).digest('hex').slice(0, 8).toUpperCase()}`;
+    const clientDeviceModel = (body.device_model || '').trim() || serverDev.model;
+    const clientDeviceOs = (body.device_os || '').trim() || serverDev.os;
+
     let keyRecord = db.findKey(key);
 
     if (!keyRecord) {
@@ -87,65 +131,87 @@ const server = http.createServer(async (req, res) => {
         key: key.startsWith('PWUP') ? key : `PWUP-${key}`,
         status: 'active',
         bound_hwid: clientHwid,
-        device_model: body.device_model || 'Android Device',
-        device_os: body.device_os || 'Android',
+        device_model: clientDeviceModel,
+        device_os: clientDeviceOs,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 3650 * 24 * 3600 * 1000).toISOString(),
+        note: 'Auto-Enrolled License',
         features: db.get().global_features
       };
       db.addKey(keyRecord);
     }
 
-    if (keyRecord.bound_hwid && keyRecord.bound_hwid !== clientHwid) {
-      return sendJson(res, 403, { error: 'This key is locked to another phone.' });
+    if (keyRecord.status === 'revoked') {
+      return sendJson(res, 400, { error: 'this license key has been revoked' });
+    }
+
+    if (new Date(keyRecord.expires_at).getTime() < Date.now()) {
+      return sendJson(res, 400, { error: 'this license key has expired' });
     }
 
     if (!keyRecord.bound_hwid) {
-      db.updateKey(key, { bound_hwid: clientHwid });
+      db.updateKey(key, {
+        bound_hwid: clientHwid,
+        device_model: clientDeviceModel,
+        device_os: clientDeviceOs
+      });
+    } else {
+      if (keyRecord.bound_hwid !== clientHwid) {
+        return sendJson(res, 403, { 
+          error: `key is locked to another device (${keyRecord.device_model || 'other device'}).` 
+        });
+      }
     }
 
     return sendJson(res, 200, {
       ok: true,
       me: {
         status: 'active',
-        bound_hwid: keyRecord.bound_hwid || clientHwid,
+        bound_hwid: keyRecord.bound_hwid,
+        device_model: keyRecord.device_model,
+        device_os: keyRecord.device_os,
         expires_at: keyRecord.expires_at,
         features: keyRecord.features || db.get().global_features
       }
     });
   }
 
-  // 2. Features API
-  if (pathname === '/api/features' && req.method === 'PATCH') {
-    const body = await parseJsonBody(req);
-    if (body.features) {
-      db.update(data => {
-        data.global_features = { ...data.global_features, ...body.features };
-      });
-      interceptor.setFeatures(db.get().global_features);
+  if (pathname === '/api/features') {
+    if (req.method === 'GET') {
+      return sendJson(res, 200, { features: db.get().global_features });
     }
-    return sendJson(res, 200, { ok: true, features: db.get().global_features });
+    if (req.method === 'PATCH') {
+      const body = await parseJsonBody(req);
+      if (body.features) {
+        db.update(data => {
+          data.global_features = { ...data.global_features, ...body.features };
+        });
+        interceptor.setFeatures(db.get().global_features);
+      }
+      return sendJson(res, 200, { ok: true, features: db.get().global_features });
+    }
   }
 
-  // 3. Happ VPN API
-  if (pathname === '/api/happ') {
-    const key = searchParams.get('key') || 'PWUP-J74D-ZFRQ';
-    const hostDomain = req.headers.host || 'localhost';
+  if (pathname === '/api/happ' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const key = body.key || 'PWUP-TEST-1234';
+    const nodes = db.get().nodes;
 
     const configData = {
       version: '1.7',
       client: 'POWER UP',
       key: key,
       created_at: new Date().toISOString(),
-      nodes: [
-        { name: 'POWERUP-VIP', address: hostDomain.split(':')[0], port: 443, ping: '24ms', status: 'online' }
-      ],
+      nodes: nodes.map(n => ({
+        name: `${n.flag} ${n.name}`,
+        address: n.host,
+        port: n.port,
+        ping: `${n.ping}ms`,
+        status: n.status
+      })),
       active_features: db.get().global_features,
       routing: {
-        rules: [
-          { domain_suffix: [hostDomain, 'railway.app', 'railway.com', 'localhost'], outbound: 'direct' },
-          { domain_suffix: ['freefiremobile.com', 'garena.com'], outbound: 'powerup-tunnel' }
-        ]
+        rules: [{ domain_suffix: ['freefiremobile.com', 'garena.com'], outbound: 'powerup-tunnel' }]
       }
     };
 
@@ -157,7 +223,6 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // 4. Unbind HWID
   if (pathname === '/api/unbind-hwid' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     if (body.key) {
@@ -167,24 +232,28 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // 5. Admin Panel APIs (ربط حقيقي ومباشر مع قاعدة البيانات db)
+  // ==========================================
+  // BACKEND ADMIN API ENDPOINTS (متصلة بقاعدة البيانات بدقة)
+  // ==========================================
   if (pathname === '/api/admin/overview' || pathname === '/api/admin/stats') {
-    const currentDb = db.get();
+    const data = db.get();
+    const totalKeys = data.keys.length;
+    const activeKeys = data.keys.filter(k => k.status === 'active').length;
     return sendJson(res, 200, {
-      totalKeys: currentDb.keys ? currentDb.keys.length : 0,
-      activeKeys: currentDb.keys ? currentDb.keys.filter(k => k.status === 'active').length : 0,
-      total_keys: currentDb.keys ? currentDb.keys.length : 0,
-      active_tunnels: 1,
-      maintenance: currentDb.maintenance
+      totalKeys,
+      activeKeys,
+      total_keys: totalKeys,
+      maintenance: data.maintenance,
+      nodes: data.nodes
     });
   }
 
   if (pathname === '/api/admin/keys' && req.method === 'GET') {
-    const currentDb = db.get();
-    return sendJson(res, 200, { keys: currentDb.keys || [] });
+    const data = db.get();
+    return sendJson(res, 200, { keys: data.keys });
   }
 
-  // توليد وحفظ المفاتيح بشكل دائم في قاعدة البيانات
+  // دعم مساري توليد المفاتيح لتعمل لوحة التحكم بدون ريفرش أو أخطاء
   if (pathname === '/api/admin/keys' || pathname === '/api/admin/keys/generate') {
     if (req.method === 'POST') {
       const body = await parseJsonBody(req);
@@ -200,12 +269,14 @@ const server = http.createServer(async (req, res) => {
           key: newKeyStr,
           status: 'active',
           bound_hwid: null,
+          device_model: null,
+          device_os: null,
           created_at: new Date().toISOString(),
           expires_at: new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString(),
           note: note,
           features: db.get().global_features
         };
-        db.addKey(newKeyObj); // حفظ المفتاح داخل قاعدة البيانات ملفات الـ JSON
+        db.addKey(newKeyObj); // الحفظ الفعلي في قاعدة البيانات
         createdKeys.push(newKeyObj);
       }
 
@@ -216,11 +287,13 @@ const server = http.createServer(async (req, res) => {
   const deleteKeyMatch = pathname.match(/^\/api\/admin\/keys\/([^/]+)$/);
   if (deleteKeyMatch && req.method === 'DELETE') {
     const targetKey = decodeURIComponent(deleteKeyMatch[1]);
-    db.deleteKey(targetKey); // حذف المفتاح من قاعدة البيانات
+    db.deleteKey(targetKey); // الحذف الفعلي من قاعدة البيانات
     return sendJson(res, 200, { ok: true });
   }
 
-  // 6. Static Routing & Admin Panel Files
+  // ==========================================
+  // STATIC ASSET & PAGE ROUTING
+  // ==========================================
   let filePath;
   if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
