@@ -121,29 +121,41 @@ function renderDashboard() {
   const expiresCountdown = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px;">
-      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+    <div style="width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px;">
+      <div style="width: 100%; display: flex; justify-content: flex-start; align-items: center; padding: 0 4px;">
         <span style="color: #10b981; font-weight: 800; font-size: 11px; letter-spacing: 2px;">● CONNECTED</span>
       </div>
       
-      <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
+      <img src="logo.png" alt="POWER UP" style="max-width: 190px; width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
 
-      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd; margin: 0 auto;">${state.auth.key}</span>
+      <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 14px 18px; display: flex; justify-content: center; align-items: center;">
+        <span style="font-size: 11.5px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key}</span>
       </div>
 
-      <div style="width: 100%; max-width: 320px;">
-        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer;">
-          ADD SUBSCRIPTION
+      <div style="width: 100%;">
+        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);">
+          OPEN HAPP VPN
         </button>
       </div>
 
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666;">
+      <!-- زر تحميل Happ VPN (Google Play) -->
+      <a href="https://play.google.com/store/apps/details?id=com.happ.proxy" target="_blank" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 16px 20px; color: #22c55e; text-decoration: none; font-size: 12.5px; font-weight: 700; font-family: inherit; transition: background 0.2s;">
+        <span>Happ VPN (Google Play)</span>
+        <span style="font-size: 14px;">↗</span>
+      </a>
+
+      <!-- زر تحميل Happ VPN (App Store) -->
+      <a href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 16px 20px; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 700; font-family: inherit; transition: background 0.2s;">
+        <span>Happ VPN (App Store)</span>
+        <span style="font-size: 14px;">↗</span>
+      </a>
+
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: 4px;">
         EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresCountdown}</span>
       </p>
 
-      <div style="margin-top: 30px;">
-        <button id="logout-btn" style="background: transparent; border: 1px solid #e50914; color: #e50914; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: bold;">Log out</button>
+      <div style="margin-top: 10px;">
+        <button id="logout-btn" style="background: transparent; border: 1px solid #e50914; color: #e50914; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; font-family: inherit;">Log out</button>
       </div>
     </div>
   `;
@@ -164,74 +176,3 @@ function attachEvents() {
     pasteBtn.addEventListener('click', async () => {
       try {
         const text = await navigator.clipboard.readText();
-        if (text) {
-          state.keyInput = formatKey(text);
-          keyInput.value = state.keyInput;
-        }
-      } catch (e) {}
-    });
-  }
-
-  const keyForm = document.getElementById('key-form');
-  if (keyForm) {
-    keyForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const val = state.keyInput.trim();
-      if (!val) { state.error = 'Enter your key'; render(); return; }
-
-      state.loading = true;
-      render();
-
-      try {
-        const devInfo = await getRealClientDevice();
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: val, hwid: devInfo.hwid, device_model: devInfo.device_model, device_os: devInfo.device_os })
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok) {
-          state.auth.loggedIn = true;
-          state.auth.key = val;
-          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
-          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
-          render();
-        } else {
-          state.error = data.error || 'Invalid key';
-          state.loading = false;
-          render();
-        }
-      } catch (err) {
-        state.error = 'Network error';
-        state.loading = false;
-        render();
-      }
-    });
-  }
-
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('powerup_session');
-      state.auth.loggedIn = false;
-      state.auth.key = '';
-      render();
-    });
-  }
-
-  const happBtn = document.getElementById('happ-btn');
-  if (happBtn) {
-    happBtn.addEventListener('click', async () => {
-      try {
-        const res = await fetch(`/api/happ?key=${encodeURIComponent(state.auth.key)}`);
-        const data = await res.json();
-        if (data.deepLink) {
-          window.location.href = data.deepLink;
-        }
-      } catch (e) {}
-    });
-  }
-}
-
-render();
