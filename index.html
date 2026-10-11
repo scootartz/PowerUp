@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html lang="en" id="html-root" dir="ltr">
+<html lang="en" id="html-root" dir="ltr" class="h-full antialiased">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <meta name="theme-color" content="#000000" />
   <title>POWER UP BY NULLDASH</title>
   
+  <!-- Icons -->
   <link rel="icon" href="icon.png" type="image/png" sizes="32x32" />
   <link rel="apple-touch-icon" href="apple-icon.png" type="image/png" sizes="180x180" />
+  
+  <!-- Styles -->
   <link rel="stylesheet" href="src/styles.css" />
   
   <style>
@@ -36,13 +39,47 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      -webkit-font-smoothing: antialiased;
       position: relative;
-      padding: 20px;
+    }
+
+    /* شريط زر تغيير اللغة في الأعلى */
+    .top-bar {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: flex-start;
+      z-index: 10;
+    }
+
+    #html-root[dir="rtl"] .top-bar {
+      justify-content: flex-end;
+    }
+
+    .lang-btn {
+      background: #121212;
+      color: #dddddd;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: inherit;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .lang-btn:hover {
+      background: #1f1f1f;
+      border-color: #444;
     }
 
     #app {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -51,27 +88,28 @@
     .main-card {
       background: #0a0a0a;
       border: 1px solid #1f1f1f;
-      border-radius: 20px;
-      padding: 40px 24px;
+      border-radius: 16px;
+      padding: 35px 20px;
       width: 100%;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(229, 9, 20, 0.08);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(200, 0, 0, 0.1);
       text-align: center;
     }
 
+    /* تنسيق صورة الشعار logo.png */
     .brand-logo-img {
-      max-width: 210px;
+      max-width: 190px;
       width: 100%;
       height: auto;
-      margin: 0 auto 24px auto;
+      margin: 0 auto 20px auto;
       display: block;
       object-fit: contain;
-      filter: drop-shadow(0 0 12px rgba(229, 9, 20, 0.3));
+      filter: drop-shadow(0 0 10px rgba(229, 9, 20, 0.2));
     }
 
     .sub-description {
-      font-size: 12px;
+      font-size: 13px;
       color: #777777;
-      margin-bottom: 28px;
+      margin-bottom: 25px;
       letter-spacing: 0.5px;
     }
 
@@ -81,7 +119,7 @@
       margin-bottom: 8px;
       display: block;
       font-weight: 600;
-      text-align: center;
+      text-align: center !important;
     }
 
     .input-wrapper {
@@ -90,9 +128,9 @@
       align-items: center;
       background: #000000;
       border: 1.5px solid #2d0d0d;
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 4px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       transition: border-color 0.2s;
     }
 
@@ -102,15 +140,19 @@
 
     .paste-btn {
       background: #1a1a1a;
-      color: #cccccc;
+      color: #dddddd;
       border: 1px solid #333;
-      border-radius: 9px;
+      border-radius: 7px;
       padding: 10px 14px;
-      font-size: 11px;
+      font-size: 12px;
       cursor: pointer;
       font-weight: bold;
       transition: background 0.2s;
       white-space: nowrap;
+    }
+
+    .paste-btn:active {
+      background: #333333;
     }
 
     .key-input {
@@ -120,7 +162,7 @@
       outline: none;
       color: #ffffff;
       font-family: inherit;
-      font-size: 13px;
+      font-size: 14px;
       padding: 10px;
       direction: ltr;
       text-align: left;
@@ -129,7 +171,7 @@
     }
 
     .key-input::placeholder {
-      color: #3b3b3b;
+      color: #444444;
       font-weight: normal;
     }
 
@@ -137,11 +179,11 @@
       width: 100%;
       background: #cc1111;
       border: none;
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 14px;
       color: #ffffff;
       font-family: inherit;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: bold;
       letter-spacing: 1px;
       cursor: pointer;
@@ -149,22 +191,34 @@
       margin-bottom: 20px;
     }
 
+    .btn-unlock:active {
+      background: #a00000;
+      transform: scale(0.99);
+    }
+
     .footer-text {
-      font-size: 11.5px;
+      font-size: 12px;
       color: #666666;
+      margin-top: 10px;
       line-height: 1.6;
     }
   </style>
 </head>
 <body>
 
+  <!-- زر تغيير اللغة في الأعلى -->
+  <div class="top-bar">
+    <button type="button" class="lang-btn" id="lang-toggle-btn" onclick="toggleLanguage()">English</button>
+  </div>
+
   <div id="app">
     <div class="main-card">
+      <!-- صورة الشعار logo.png -->
       <img src="logo.png" alt="POWER UP" class="brand-logo-img" />
 
-      <p class="sub-description">No account, no password. Your key only.</p>
+      <p class="sub-description" id="text-desc">No account, no password. Your key only.</p>
 
-      <span class="input-label">Access Key</span>
+      <span class="input-label" id="text-label">Access Key</span>
       <div class="input-wrapper">
         <button type="button" class="paste-btn" id="paste-btn">Paste</button>
         <input 
@@ -179,9 +233,9 @@
 
       <button type="button" class="btn-unlock" id="unlock-btn">Unlock</button>
 
-      <p class="footer-text">
+      <p class="footer-text" id="text-footer">
         No key? Contact your seller.<br>
-        <span style="font-size: 10px; color: #444;">Time starts upon connection.</span>
+        <span style="font-size: 10px; color: #444;" id="text-subfooter">Time starts upon connection.</span>
       </p>
     </div>
   </div>
@@ -189,6 +243,46 @@
   <script type="module" src="src/app.js"></script>
 
   <script>
+    let currentLang = 'en';
+
+    function toggleLanguage() {
+      const htmlRoot = document.getElementById('html-root');
+      const langBtn = document.getElementById('lang-toggle-btn');
+      const textDesc = document.getElementById('text-desc');
+      const textLabel = document.getElementById('text-label');
+      const pasteBtn = document.getElementById('paste-btn');
+      const unlockBtn = document.getElementById('unlock-btn');
+      const textFooter = document.getElementById('text-footer');
+      const textSubfooter = document.getElementById('text-subfooter');
+
+      if (currentLang === 'en') {
+        currentLang = 'ar';
+        htmlRoot.setAttribute('dir', 'rtl');
+        htmlRoot.setAttribute('lang', 'ar');
+        langBtn.textContent = 'عربي';
+        textDesc.textContent = 'بلا حساب ولا كلمة مرور. مفتاحك فقط.';
+        textLabel.textContent = 'مفتاح الدخول';
+        pasteBtn.textContent = 'لصق';
+        unlockBtn.textContent = 'فتح';
+        textFooter.innerHTML = 'ليس لديك مفتاح؟ تواصل مع البائع.<br>';
+        textSubfooter.textContent = 'يبدأ وقتك عند الاتصال.';
+        textFooter.appendChild(textSubfooter);
+      } else {
+        currentLang = 'en';
+        htmlRoot.setAttribute('dir', 'ltr');
+        htmlRoot.setAttribute('lang', 'en');
+        langBtn.textContent = 'English';
+        textDesc.textContent = 'No account, no password. Your key only.';
+        textLabel.textContent = 'Access Key';
+        pasteBtn.textContent = 'Paste';
+        unlockBtn.textContent = 'Unlock';
+        textFooter.innerHTML = 'No key? Contact your seller.<br>';
+        textSubfooter.textContent = 'Time starts upon connection.';
+        textFooter.appendChild(textSubfooter);
+      }
+    }
+
+    // زر اللصق التفاعلي
     document.getElementById('paste-btn').addEventListener('click', async () => {
       try {
         const text = await navigator.clipboard.readText();
@@ -196,7 +290,7 @@
           document.getElementById('access-key-input').value = text.trim();
         }
       } catch (err) {
-        alert('Please allow clipboard permission');
+        alert(currentLang === 'ar' ? 'يرجى السماح بصلاحية اللصق للمتصفح' : 'Please allow clipboard permission');
       }
     });
   </script>
