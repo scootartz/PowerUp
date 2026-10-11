@@ -33,9 +33,8 @@ if (savedSession) {
   } catch (e) {}
 }
 
-// دقة العداد بالأيام والساعات تماماً مثل الصورة المطلوبة
 function formatCountdown(targetIso) {
-  if (!targetIso) return '87599H 56M'; // تطابق الشكل الافتراضي بالصورة أو عداد الأيام
+  if (!targetIso) return '3649D 18H';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
@@ -92,7 +91,8 @@ function renderStatusTab(me) {
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" />
+      <!-- تم تعديل مسار الشعار هنا ليكون صحيحاً عبر الجذر -->
+      <img src="/logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.src='logo.png';" />
 
       <!-- خانة المفتاح في المنتصف تماماً -->
       <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
@@ -120,8 +120,6 @@ function renderFeaturesTab(me) {
   const marker = f.marker || { enabled: true, type: 'Phantom' };
   const aimpoint = f.aimpoint || { enabled: false };
   const aimLag = f.aimLag || { enabled: false };
-  const gloo = f.gloo || { enabled: false };
-  const fastRevive = f.fastRevive || { enabled: false };
 
   const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
   const isMarkerDisabled = !marker.enabled;
@@ -336,7 +334,6 @@ function logout() {
   location.reload();
 }
 
-// تفعيل زر Paste وزر Unlock في شاشة تسجيل الدخول
 document.addEventListener('DOMContentLoaded', () => {
   setupLoginEvents();
   if (state.auth.loggedIn) {
