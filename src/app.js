@@ -2,10 +2,10 @@ import { CONFIG } from './config.js';
 import { TRANSLATIONS } from './translations.js';
 import { Icons } from './icons.js';
 
-// State Store
 const state = {
   lang: localStorage.getItem('powerup_lang') || 'en',
-  tab: 'status', // 'status' | 'features' | 'manage'
+  tab: 'status',
+  isConnected: localStorage.getItem('powerup_vpn_connected') === 'true',
   auth: {
     loggedIn: false,
     key: '',
@@ -17,22 +17,9 @@ const state = {
       expires_at: null,
       features: JSON.parse(JSON.stringify(CONFIG.DEFAULT_FEATURES))
     }
-  },
-  keyInput: '',
-  loading: false,
-  error: null,
-  maintenance: {
-    enabled: false,
-    blocked: false,
-    title: 'maintenance',
-    message: "we're doing maintenance. everything is paused until we're back."
-  },
-  happLoading: false,
-  happError: null,
-  timerInterval: null
+  }
 };
 
-// Check local storage session
 const savedSession = localStorage.getItem('powerup_session');
 if (savedSession) {
   try {
@@ -46,79 +33,10 @@ if (savedSession) {
   } catch (e) {}
 }
 
-// Translation helper
-function t(key) {
-  const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
-  return dict[key] || TRANSLATIONS.en[key] || key;
-}
-
-// Real Hardware Fingerprinting & Actual Device Identification
-async function getRealClientDevice() {
-  const ua = navigator.userAgent || '';
-  let os = 'Unknown OS';
-  let deviceName = 'Unknown Device';
-
-  if (/Windows NT 10.0/i.test(ua)) os = 'Windows 10/11';
-  else if (/iPhone/i.test(ua)) os = 'iOS';
-  else if (/iPad/i.test(ua)) os = 'iPadOS';
-  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS';
-  else if (/Android/i.test(ua)) {
-    const m = ua.match(/Android (\d+(\.\d+)?)/);
-    os = m ? `Android ${m[1]}` : 'Android';
-  } else if (/Linux/i.test(ua)) os = 'Linux';
-
-  let gpuRenderer = '';
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (gl) {
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      if (debugInfo) {
-        const raw = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
-        gpuRenderer = raw.replace(/ANGLE \(\vert{}, Direct3D.*\vert{}\)/g, '').trim();
-      }
-    }
-  } catch (e) {}
-
-  if (/Android/i.test(ua)) {
-    const modelMatch = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
-    const model = modelMatch ? modelMatch[1].trim() : 'Android Device';
-    deviceName = `${model} (${os})`;
-  } else if (/Windows/i.test(ua)) {
-    deviceName = gpuRenderer ? `Windows PC (${gpuRenderer})` : `Windows PC (${os})`;
-  } else {
-    deviceName = `${os} Device`;
-  }
-
-  let hwid = localStorage.getItem('powerup_hwid');
-  if (!hwid) {
-    const seed = (navigator.platform || '') + (navigator.hardwareConcurrency || 4) + gpuRenderer;
-    let h = 0;
-    for (let i = 0; i < seed.length; i++) {
-      h = ((h << 5) - h) + seed.charCodeAt(i);
-      h |= 0;
-    }
-    hwid = `PWUP-${Math.abs(h).toString(16).padStart(8, '0').slice(0, 8).toUpperCase()}`;
-    localStorage.setItem('powerup_hwid', hwid);
-  }
-
-  return { hwid, device_model: deviceName, device_os: os };
-}
-
-function formatKey(val) {
-  return (
-    val
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .slice(0, 16)
-      .match(/.{1,4}/g) ?? []
-  ).join('-');
-}
-
 function formatCountdown(targetIso) {
-  if (!targetIso) return '—';
+  if (!targetIso) return '3649d 18h';
   const diff = new Date(targetIso).getTime() - Date.now();
-  if (diff <= 0) return '<span class="font-semibold text-accent-bad">expired</span>';
+  if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
   const days = Math.floor(sec / 86400);
   const hours = Math.floor((sec % 86400) / 3600);
@@ -128,35 +46,7 @@ function formatCountdown(targetIso) {
   return `${mins}m`;
 }
 
-async function checkMaintenance() {
-  try {
-    const res = await fetch('/api/maintenance');
-    if (res.ok) {
-      state.maintenance = await res.json();
-      render();
-    }
-  } catch (e) {}
-}
-
-function initSSE() {
-  try {
-    const es = new EventSource('/api/events');
-    es.addEventListener('maintenance', (e) => {
-      try {
-        state.maintenance = JSON.parse(e.data);
-        render();
-      } catch (err) {}
-    });
-    es.addEventListener('logout', (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (!d.key || d.key === state.auth.key) logout();
-      } catch (err) {}
-    });
-  } catch (e) {}
-}
-
-function render() {
+function renderDashboard() {
   const root = document.getElementById('app');
   if (!root) return;
 
@@ -165,275 +55,280 @@ function render() {
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.title = 'POWER UP — Client Portal';
 
-  let html = '';
+  const statusColor = state.isConnected ? '#10b981' : '#e50914';
+  const statusText = state.isConnected 
+    ? (state.lang === 'ar' ? 'متصل' : 'CONNECTED') 
+    : (state.lang === 'ar' ? 'غير متصل' : 'OFFLINE');
 
-  html += `
-    <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#050505]">
-      <div class="absolute left-1/2 top-[-14%] h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-[#e50914]/[0.06] blur-[120px]"></div>
-      <div class="absolute bottom-[-18%] right-[-12%] h-[480px] w-[480px] rounded-full bg-[#e50914]/[0.04] blur-[120px]"></div>
-    </div>
-  `;
-
-  if (state.maintenance && state.maintenance.enabled) {
-    html += `
-      <div class="fixed inset-x-0 top-0 z-50 flex items-start justify-center gap-2 bg-[#fbbf24]/15 px-4 py-2.5 text-center text-[11px] text-[#fbbf24] backdrop-blur">
-        <span><span class="font-bold uppercase">${t('maintenance_title')}</span> · ${state.maintenance.message || t('maintenance_body')}</span>
-      </div>
-    `;
-  }
-
-  if (!state.auth.loggedIn) {
-    // إذا لم يكن مسجلاً للدخول، يتم ترك العرض لـ index.html الأساسي لتفادي أي تداخل
-    return;
-  } else {
-    html += renderDashboard();
-  }
-
-  root.innerHTML = html;
-  attachEvents();
-}
-
-function renderDashboard() {
-  const me = state.auth.me;
-
-  return `
-    <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6">
+  root.innerHTML = `
+    <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
       
-      <!-- Header مع زر اللغة الأحادي النظيف -->
-      <div class="flex items-center justify-between gap-3 px-1 py-4">
-        <div class="flex min-w-0 items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-white">
-          <span class="h-2 w-2 shrink-0 rounded-full bg-[#10b981]"></span>
-          ${me.status}
+      <!-- الشريط العلوي للحالة -->
+      <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: ${statusColor};">
+          <span style="height: 8px; width: 8px; border-radius: 50%; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
+          ${statusText}
         </div>
         
-        <button id="single-lang-btn" class="bg-[#121212] text-[#dddddd] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-xs font-bold transition-colors hover:bg-[#1f1f1f]">
-          ${state.lang === 'ar' ? 'English' : 'عربي'}
+        <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);" title="Change Language">
+          ${Icons.languages(20)}
         </button>
       </div>
 
-      <div class="flex flex-1 flex-col animate-rise">
-        ${state.tab === 'status' ? renderStatusTab(me) : ''}
-        ${state.tab === 'features' ? renderFeaturesTab(me) : ''}
+      <!-- محتوى التبويبات -->
+      <div style="width: 100%; max-width: 400px; margin: auto 0; display: flex; flex-direction: column; align-items: center;">
+        ${state.tab === 'status' ? renderStatusTab(state.auth.me) : ''}
+        ${state.tab === 'features' ? renderFeaturesTab(state.auth.me) : ''}
         ${state.tab === 'manage' ? renderManageTab() : ''}
       </div>
 
-    </main>
-    ${renderBottomNav()}
+      <!-- شريط التنقل السفلي -->
+      ${renderBottomNav()}
+    </div>
   `;
+  attachDashboardEvents();
 }
 
 function renderStatusTab(me) {
-  const expiresCountdown = formatCountdown(me.expires_at);
+  const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div class="flex flex-1 flex-col items-center justify-between gap-8 py-4">
-      <div class="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <div style="font-size: 42px; font-weight: 900; color: #ffffff; line-height: 0.95; letter-spacing: 2px; text-transform: uppercase; filter: drop-shadow(0 0 16px rgba(229, 9, 20, 0.5));">
-          POWER
-          <span style="color: #e50914; display: block; font-size: 48px;">UP</span>
-        </div>
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
+      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
 
-        <div class="mt-4 flex flex-col gap-2 bg-[#0a0a0a] border border-[#1f1f1f] p-4 rounded-2xl w-full text-left">
-          <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">HWID: <span class="font-bold text-white">${me.bound_hwid || 'Not locked'}</span></p>
-          <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">Device: <span class="font-bold text-white">${me.device_model || 'Active'}</span></p>
-          <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">Expires: <span id="countdown-display" class="font-bold text-[#e50914]">${expiresCountdown}</span></p>
-        </div>
-      </div>
-
-      <div class="w-full">
-        <button id="happ-btn" class="btn w-full uppercase tracking-[0.15em] bg-[#e50914] text-white hover:bg-[#c40711]" ${state.happLoading ? 'disabled' : ''}>
-          ${state.happLoading ? 'Connecting...' : `${Icons.arrowUpRight(15)}${t('add_to_happ')}`}
+      <!-- خانة المفتاح في المنتصف تماماً -->
+      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-WKZF-LMXY-EH3Y'}</span>
+        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
+          ${Icons.copy(16)}
         </button>
       </div>
+
+      <div style="width: 100%; max-width: 320px;">
+        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
+          ADD SUBSCRIPTION
+        </button>
+      </div>
+
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
+        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
+      </p>
     </div>
   `;
 }
 
 function renderFeaturesTab(me) {
-  const f = me.features;
-  const marker = f.marker || { enabled: true, type: 'Power' };
+  const f = me.features || {};
+  const marker = f.marker || { enabled: true, type: 'Phantom' };
   const aimpoint = f.aimpoint || { enabled: false };
-  const gloo = f.gloo || { enabled: false, yawDeg: 180 };
+  const aimLag = f.aimLag || { enabled: false };
+  const gloo = f.gloo || { enabled: false };
   const fastRevive = f.fastRevive || { enabled: false };
 
-  return `
-    <div class="flex flex-col gap-4">
-      <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">${t('features_title')}</div>
+  const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
+  const isMarkerDisabled = !marker.enabled;
 
-      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Marker Type</span>
-          <button type="button" data-toggle="marker" class="relative h-6 w-11 rounded-full transition-colors ${marker.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${marker.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+  return `
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">FEATURES</div>
+
+      <!-- Marker Type مع تفعيل/تعطيل الخيارات السفلية بناءً على الزر العلوي -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">MARKER TYPE</span>
+          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_marker')}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          ${CONFIG.MARKER_TYPES.map(type => `
-            <button data-marker-type="${type}" class="rounded-xl px-3 py-1.5 text-xs transition-colors ${marker.type === type ? 'bg-[#e50914] font-bold text-white' : 'bg-white/[0.04] text-[#8a8a8e] hover:text-white'}">${type}</button>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: ${isMarkerDisabled ? '0.35' : '1'}; pointer-events: ${isMarkerDisabled ? 'none' : 'auto'}; transition: opacity 0.2s;">
+          ${markerTypes.map(type => `
+            <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
           `).join('')}
         </div>
       </div>
 
-      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Aimpoint (Neck Lock)</span>
-          <button type="button" data-toggle="aimpoint" class="relative h-6 w-11 rounded-full transition-colors ${aimpoint.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimpoint.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- Aimpoint -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
+          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_aimpoint')}</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
       </div>
 
-      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Gloo Rotation</span>
-          <button type="button" data-toggle="gloo" class="relative h-6 w-11 rounded-full transition-colors ${gloo.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${gloo.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- Aim Lag -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
+          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_gloo')}</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
       </div>
 
-      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Fast Revive</span>
-          <button type="button" data-toggle="fastRevive" class="relative h-6 w-11 rounded-full transition-colors ${fastRevive.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
-            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${fastRevive.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+      <!-- Gloo Rotation -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
+          <button type="button" data-toggle="gloo" style="width: 44px; height: 24px; border-radius: 12px; background: ${gloo.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_revive')}</p>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
+      </div>
+
+      <!-- Fast Revive -->
+      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
+          <button type="button" data-toggle="fastRevive" style="width: 44px; height: 24px; border-radius: 12px; background: ${fastRevive.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+          </button>
+        </div>
+        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
 }
 
 function renderManageTab() {
-  return `
-    <div class="flex flex-1 flex-col gap-3">
-      <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">Management</div>
+  const discordUrl = 'https://discord.gg/Km6Hsxk7Y4';
+  const googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.happproxy';
+  const appStoreUrl = 'https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215';
 
-      <button id="unbind-hwid-btn" class="w-full text-left">
-        <div class="card flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl hover:border-[#e50914]/50 transition-colors">
-          <span class="text-sm text-white">Reset Device Lock (Unbind HWID)</span>
-          ${Icons.chevronRight(16, 'text-[#777]}')}
-        </div>
+  return `
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
+      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">MANAGEMENT</div>
+      
+      <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
+        Reset Device Lock (Unbind HWID)
       </button>
 
-      <div class="mt-auto pt-6">
-        <button id="logout-btn" class="w-full text-left">
-          <div class="card flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#e50914]/30 rounded-2xl hover:border-[#e50914]">
-            <span class="text-sm text-[#e50914] font-bold">${t('log_out')}</span>
-            ${Icons.chevronRight(16, 'text-[#e50914]}')}
-          </div>
-        </button>
-      </div>
+      <a href="${discordUrl}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #5865F2; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Discord Community</span>
+          <span>↗</span>
+        </div>
+      </a>
+
+      <a href="${googlePlayUrl}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #34A853; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Happ VPN (Google Play)</span>
+          <span>↗</span>
+        </div>
+      </a>
+
+      <a href="${appStoreUrl}" target="_blank" style="text-decoration: none; width: 100%;">
+        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+          <span>Happ VPN (App Store)</span>
+          <span>↗</span>
+        </div>
+      </a>
+      
+      <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
+        Log out
+      </button>
     </div>
   `;
 }
 
 function renderBottomNav() {
   const tabs = [
-    { id: 'status', label: t('nav_home'), icon: Icons.skull(18) },
-    { id: 'features', label: t('nav_features'), icon: Icons.slidersHorizontal(18) },
-    { id: 'manage', label: t('nav_manage'), icon: Icons.settings(18) }
+    { id: 'status', label: state.lang === 'ar' ? 'الرئيسية' : 'HOME', icon: Icons.skull(18) },
+    { id: 'features', label: state.lang === 'ar' ? 'الميزات' : 'FEATURES', icon: Icons.slidersHorizontal(18) },
+    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT', icon: Icons.settings(18) }
   ];
 
   return `
-    <nav class="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-3">
-      <div class="pointer-events-auto flex items-stretch gap-1 rounded-[20px] bg-[#0a0a0a]/90 border border-[#1f1f1f] p-1.5 backdrop-blur-xl shadow-2xl">
+    <div style="position: fixed; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; z-index: 50; pointer-events: none;">
+      <div style="pointer-events: auto; background: rgba(10, 10, 10, 0.95); border: 1px solid #1f1f1f; border-radius: 24px; padding: 6px; display: flex; gap: 6px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
         ${tabs.map(item => `
-          <button data-nav-tab="${item.id}" class="flex w-[72px] flex-col items-center justify-center gap-1 rounded-[14px] py-2 transition-all ${state.tab === item.id ? 'bg-[#e50914] text-white font-bold shadow-lg shadow-[#e50914]/30' : 'text-[#8a8a8e] hover:text-white'}">
+          <button data-nav-tab="${item.id}" style="width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 18px; padding: 10px 0; border: ${state.tab === item.id ? '1px solid #333333' : 'none'}; background: ${state.tab === item.id ? '#1a1a1a' : 'transparent'}; color: ${state.tab === item.id ? '#ffffff' : '#777777'}; cursor: pointer;">
             ${item.icon}
-            <span class="text-[9.5px] uppercase tracking-[0.08em]">${item.label}</span>
+            <span style="font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">${item.label}</span>
           </button>
         `).join('')}
       </div>
-    </nav>
+    </div>
   `;
 }
 
-function attachEvents() {
-  const langBtn = document.getElementById('single-lang-btn');
+function attachDashboardEvents() {
+  const langBtn = document.getElementById('lang-toggle-icon');
   if (langBtn) {
     langBtn.addEventListener('click', () => {
       state.lang = state.lang === 'en' ? 'ar' : 'en';
       localStorage.setItem('powerup_lang', state.lang);
-      render();
+      renderDashboard();
     });
   }
 
-  const keyInput = document.getElementById('key-input');
-  if (keyInput) {
-    keyInput.addEventListener('input', (e) => {
-      state.keyInput = formatKey(e.target.value);
-      keyInput.value = state.keyInput;
-      state.error = null;
+  const copyBtn = document.getElementById('copy-key-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(state.auth.key);
+      alert(state.lang === 'ar' ? 'تم نسخ المفتاح بنجاح' : 'Key copied successfully');
     });
   }
 
-  const keyForm = document.getElementById('key-form');
-  if (keyForm) {
-    keyForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const val = state.keyInput.trim();
-      if (!val) { state.error = 'Enter your key'; render(); return; }
+  const happBtn = document.getElementById('happ-btn');
+  if (happBtn) {
+    happBtn.addEventListener('click', () => {
+      state.isConnected = true;
+      localStorage.setItem('powerup_vpn_connected', 'true');
 
-      state.loading = true;
-      render();
-
-      try {
-        const devInfo = await getRealClientDevice();
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: val, hwid: devInfo.hwid, device_model: devInfo.device_model, device_os: devInfo.device_os })
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok) {
-          state.auth.loggedIn = true;
-          state.auth.key = val;
-          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
-          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me, features: state.auth.me.features }));
-          render();
-        } else {
-          state.error = data.error || 'Invalid key';
-          state.loading = false;
-          render();
+      const configObj = {
+        version: "1.7",
+        client: "POWER UP",
+        key: state.auth.key,
+        routing: {
+          rules: [{ domain_suffix: ["freefiremobile.com", "garena.com"], outbound: "powerup-tunnel" }]
         }
-      } catch (err) {
-        state.error = 'Network error';
-        state.loading = false;
-        render();
-      }
+      };
+
+      const encodedData = btoa(JSON.stringify(configObj));
+      const deepLink = `happ://import?data=${encodeURIComponent(encodedData)}`;
+      
+      window.location.href = deepLink;
+      renderDashboard();
     });
   }
 
   document.querySelectorAll('[data-nav-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.tab = btn.getAttribute('data-nav-tab');
-      render();
+      renderDashboard();
     });
   });
 
   document.querySelectorAll('[data-toggle]').forEach(btn => {
     btn.addEventListener('click', () => {
       const field = btn.getAttribute('data-toggle');
+      if (!state.auth.me.features) state.auth.me.features = {};
       const f = state.auth.me.features;
-      if (field === 'marker') f.marker.enabled = !f.marker.enabled;
-      else if (field === 'aimpoint') f.aimpoint.enabled = !f.aimpoint.enabled;
-      else if (field === 'gloo') f.gloo.enabled = !f.gloo.enabled;
-      else if (field === 'fastRevive') f.fastRevive.enabled = !f.fastRevive.enabled;
-      render();
+      
+      if (field === 'marker') f.marker = { ...f.marker, enabled: !f.marker?.enabled };
+      else if (field === 'aimpoint') f.aimpoint = { ...f.aimpoint, enabled: !f.aimpoint?.enabled };
+      else if (field === 'aimLag') f.aimLag = { ...f.aimLag, enabled: !f.aimLag?.enabled };
+      else if (field === 'gloo') f.gloo = { ...f.gloo, enabled: !f.gloo?.enabled };
+      else if (field === 'fastRevive') f.fastRevive = { ...f.fastRevive, enabled: !f.fastRevive?.enabled };
+      
+      renderDashboard();
       saveFeatures(f);
     });
   });
 
   document.querySelectorAll('[data-marker-type]').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (!state.auth.me.features) state.auth.me.features = {};
+      if (!state.auth.me.features.marker) state.auth.me.features.marker = {};
       state.auth.me.features.marker.type = btn.getAttribute('data-marker-type');
-      render();
+      renderDashboard();
       saveFeatures(state.auth.me.features);
     });
   });
@@ -448,7 +343,9 @@ function attachEvents() {
   }
 
   const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
 }
 
 async function saveFeatures(f) {
@@ -460,11 +357,86 @@ async function saveFeatures(f) {
 
 function logout() {
   localStorage.removeItem('powerup_session');
+  localStorage.removeItem('powerup_vpn_connected');
   state.auth.loggedIn = false;
+  state.isConnected = false;
   state.auth.key = '';
-  render();
+  location.reload();
 }
 
-checkMaintenance();
-initSSE();
-render();
+document.addEventListener('DOMContentLoaded', () => {
+  const keyInput = document.getElementById('access-key-input');
+  const unlockBtn = document.getElementById('unlock-btn');
+
+  if (keyInput) {
+    keyInput.addEventListener('input', (e) => {
+      keyInput.value = formatKey(e.target.value);
+    });
+  }
+
+  if (unlockBtn) {
+    unlockBtn.addEventListener('click', async () => {
+      const val = keyInput ? keyInput.value.trim() : '';
+      if (!val) {
+        alert('Please enter your access key');
+        return;
+      }
+
+      unlockBtn.textContent = 'Authenticating...';
+      unlockBtn.disabled = true;
+
+      try {
+        const dev = await getRealClientDevice();
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: val, hwid: dev.hwid, device_model: dev.device_model, device_os: dev.device_os })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          state.auth.loggedIn = true;
+          state.auth.key = val;
+          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
+          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
+          renderDashboard();
+        } else {
+          alert(data.error || 'Invalid key');
+          unlockBtn.textContent = 'Unlock';
+          unlockBtn.disabled = false;
+        }
+      } catch (err) {
+        alert('Network error');
+        unlockBtn.textContent = 'Unlock';
+        unlockBtn.disabled = false;
+      }
+    });
+  }
+
+  if (state.auth.loggedIn) {
+    renderDashboard();
+  }
+});
+
+function formatKey(val) {
+  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g) ?? []).join('-');
+}
+
+async function getRealClientDevice() {
+  const ua = navigator.userAgent || '';
+  let os = 'Unknown OS';
+  let deviceName = 'Unknown Device';
+  if (/Android/i.test(ua)) {
+    os = 'Android';
+    deviceName = 'Android Device';
+  } else if (/Windows/i.test(ua)) {
+    os = 'Windows';
+    deviceName = 'Windows PC';
+  }
+  let hwid = localStorage.getItem('powerup_hwid');
+  if (!hwid) {
+    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    localStorage.setItem('powerup_hwid', hwid);
+  }
+  return { hwid, device_model: deviceName, device_os: os };
+}
