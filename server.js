@@ -12,7 +12,6 @@ gameTunnel.start();
 // Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
-// ربط البورت بمتغير البيئة الخاص بـ Railway لتجنب إغلاق الحاوية
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
 
@@ -223,7 +222,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Static Files Routing (مع التوجيه الصحيح لملف الأدمن Control-panel-xyz987.html)
+  // Static Files Routing
   let filePath;
   if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
