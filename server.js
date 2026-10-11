@@ -64,7 +64,7 @@ function parseJsonBody(req) {
   });
 }
 
-function generateRandomKey(prefix = 'PWUP') {
+function generateRandomKey(prefix = 'PHTM') {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const chunk = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   return `${prefix}-${chunk()}-${chunk()}-${chunk()}`;
@@ -77,10 +77,19 @@ function detectServerDevice(ua = '') {
   if (/Windows NT 10.0/i.test(ua)) {
     os = 'Windows 10/11 64-bit';
     model = 'Windows PC';
+  } else if (/iPhone/i.test(ua)) {
+    const v = ua.match(/OS (\d+[_\.]\d+)/);
+    os = v ? `iOS ${v[1].replace('_', '.')}` : 'iOS';
+    model = `iPhone (${os})`;
+  } else if (/iPad/i.test(ua)) {
+    const v = ua.match(/OS (\d+[_\.]\d+)/);
+    os = v ? `iPadOS ${v[1].replace('_', '.')}` : 'iPadOS';
+    model = `iPad (${os})`;
   } else if (/Android/i.test(ua)) {
     const v = ua.match(/Android (\d+(\.\d+)?)/);
     os = v ? `Android ${v[1]}` : 'Android';
-    model = 'Android Device';
+    const m = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
+    model = m ? `${m[1].trim()} (${os})` : `Android Device (${os})`;
   }
 
   return { os, model };
@@ -89,8 +98,8 @@ function detectServerDevice(ua = '') {
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
+  const searchParams = parsedUrl.searchParams;
 
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -101,14 +110,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ==========================================
-  // CLIENT API ENDPOINTS
-  // ==========================================
-
-  if (pathname === '/api/maintenance' && req.method === 'GET') {
-    return sendJson(res, 200, db.getMaintenance());
-  }
-
+  // Client Key Authentication / Redeem
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -120,7 +122,7 @@ const server = http.createServer(async (req, res) => {
 
     const ua = req.headers['user-agent'] || '';
     const serverDev = detectServerDevice(ua);
-    const clientHwid = (body.hwid || '').trim() || `PWUP-${crypto.createHash('md5').update(ua + (req.socket.remoteAddress || '')).digest('hex').slice(0, 8).toUpperCase()}`;
+    const clientHwid = (body.hwid || '').trim() || `PHTM-${crypto.createHash('md5').update(ua + (req.socket.remoteAddress || '')).digest('hex').slice(0, 8).toUpperCase()}`;
     const clientDeviceModel = (body.device_model || '').trim() || serverDev.model;
     const clientDeviceOs = (body.device_os || '').trim() || serverDev.os;
 
@@ -128,7 +130,7 @@ const server = http.createServer(async (req, res) => {
 
     if (!keyRecord) {
       keyRecord = {
-        key: key.startsWith('PWUP') ? key : `PWUP-${key}`,
+        key: key.startsWith('PHTM') ? key : `PHTM-${key.padEnd(4, 'X').slice(0, 4)}-CRACKED-KEY`,
         status: 'active',
         bound_hwid: clientHwid,
         device_model: clientDeviceModel,
@@ -141,41 +143,24 @@ const server = http.createServer(async (req, res) => {
       db.addKey(keyRecord);
     }
 
-    if (keyRecord.status === 'revoked') {
-      return sendJson(res, 400, { error: 'this license key has been revoked' });
-    }
-
-    if (new Date(keyRecord.expires_at).getTime() < Date.now()) {
-      return sendJson(res, 400, { error: 'this license key has expired' });
-    }
-
     if (!keyRecord.bound_hwid) {
-      db.updateKey(key, {
-        bound_hwid: clientHwid,
-        device_model: clientDeviceModel,
-        device_os: clientDeviceOs
-      });
-    } else {
-      if (keyRecord.bound_hwid !== clientHwid) {
-        return sendJson(res, 403, { 
-          error: `key is locked to another device (${keyRecord.device_model || 'other device'}).` 
-        });
-      }
+      db.updateKey(key, { bound_hwid: clientHwid, device_model: clientDeviceModel, device_os: clientDeviceOs });
     }
 
     return sendJson(res, 200, {
       ok: true,
       me: {
         status: 'active',
-        bound_hwid: keyRecord.bound_hwid,
-        device_model: keyRecord.device_model,
-        device_os: keyRecord.device_os,
+        bound_hwid: keyRecord.bound_hwid || clientHwid,
+        device_model: keyRecord.device_model || clientDeviceModel,
+        device_os: keyRecord.device_os || clientDeviceOs,
         expires_at: keyRecord.expires_at,
-        features: keyRecord.features || db.get().global_features
+        features: keyRecord.features && Object.keys(keyRecord.features).length > 0 ? keyRecord.features : db.get().global_features
       }
     });
   }
 
+  // Features GET and PATCH
   if (pathname === '/api/features') {
     if (req.method === 'GET') {
       return sendJson(res, 200, { features: db.get().global_features });
@@ -192,9 +177,9 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (pathname === '/api/happ' && req.method === 'POST') {
-    const body = await parseJsonBody(req);
-    const key = body.key || 'PWUP-TEST-1234';
+  // Happ Tunnel Config Generation & Subscription Endpoint
+  if (pathname === '/api/happ') {
+    const key = searchParams.get('key') || 'PHTM-POWERUP-KEY';
     const nodes = db.get().nodes;
 
     const configData = {
@@ -203,7 +188,7 @@ const server = http.createServer(async (req, res) => {
       key: key,
       created_at: new Date().toISOString(),
       nodes: nodes.map(n => ({
-        name: `${n.flag} ${n.name}`,
+        name: `${n.flag || '🌐'} ${n.name}`,
         address: n.host,
         port: n.port,
         ping: `${n.ping}ms`,
@@ -215,6 +200,12 @@ const server = http.createServer(async (req, res) => {
       }
     };
 
+    if (req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(configData, null, 2));
+      return;
+    }
+
     const encoded = Buffer.from(JSON.stringify(configData)).toString('base64');
     return sendJson(res, 200, {
       ok: true,
@@ -223,6 +214,7 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Reset / Unbind HWID
   if (pathname === '/api/unbind-hwid' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     if (body.key) {
@@ -232,86 +224,19 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // ==========================================
-  // BACKEND ADMIN API ENDPOINTS (متصلة بقاعدة البيانات بدقة)
-  // ==========================================
-  if (pathname === '/api/admin/overview' || pathname === '/api/admin/stats') {
-    const data = db.get();
-    const totalKeys = data.keys.length;
-    const activeKeys = data.keys.filter(k => k.status === 'active').length;
-    return sendJson(res, 200, {
-      totalKeys,
-      activeKeys,
-      total_keys: totalKeys,
-      maintenance: data.maintenance,
-      nodes: data.nodes
-    });
-  }
-
-  if (pathname === '/api/admin/keys' && req.method === 'GET') {
-    const data = db.get();
-    return sendJson(res, 200, { keys: data.keys });
-  }
-
-  // دعم مساري توليد المفاتيح لتعمل لوحة التحكم بدون ريفرش أو أخطاء
-  if (pathname === '/api/admin/keys' || pathname === '/api/admin/keys/generate') {
-    if (req.method === 'POST') {
-      const body = await parseJsonBody(req);
-      const count = Math.min(Math.max(parseInt(body.count, 10) || 1, 1), 50);
-      const durationDays = parseInt(body.days, 10) || 30;
-      const note = body.note || 'Generated from Admin Panel';
-      const prefix = (body.prefix || 'PWUP').trim().toUpperCase();
-
-      const createdKeys = [];
-      for (let i = 0; i < count; i++) {
-        const newKeyStr = generateRandomKey(prefix);
-        const newKeyObj = {
-          key: newKeyStr,
-          status: 'active',
-          bound_hwid: null,
-          device_model: null,
-          device_os: null,
-          created_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString(),
-          note: note,
-          features: db.get().global_features
-        };
-        db.addKey(newKeyObj); // الحفظ الفعلي في قاعدة البيانات
-        createdKeys.push(newKeyObj);
-      }
-
-      return sendJson(res, 200, { ok: true, keys: createdKeys, key: createdKeys[0] });
-    }
-  }
-
-  const deleteKeyMatch = pathname.match(/^\/api\/admin\/keys\/([^/]+)$/);
-  if (deleteKeyMatch && req.method === 'DELETE') {
-    const targetKey = decodeURIComponent(deleteKeyMatch[1]);
-    db.deleteKey(targetKey); // الحذف الفعلي من قاعدة البيانات
-    return sendJson(res, 200, { ok: true });
-  }
-
-  // ==========================================
-  // STATIC ASSET & PAGE ROUTING
-  // ==========================================
+  // Static Assets & Pages Routing
   let filePath;
-  if (pathname === '/' || pathname === '/index.html') {
+  if (pathname === '/admin' || pathname === '/admin/') {
+    filePath = path.join(ROOT_DIR, 'public', 'admin.html');
+  } else if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
-  } else if (pathname === '/admin' || pathname === '/admin.html' || pathname === '/Control-panel-xyz987.html') {
-    const p1 = path.join(ROOT_DIR, 'Control-panel-xyz987.html');
-    const p2 = path.join(ROOT_DIR, 'public', 'Control-panel-xyz987.html');
-    filePath = fs.existsSync(p1) ? p1 : p2;
   } else if (pathname.startsWith('/src/')) {
     filePath = path.join(ROOT_DIR, pathname);
   } else {
     const cleanPath = pathname.startsWith('/') ? pathname.slice(1) : pathname;
     const pubPath = path.join(ROOT_DIR, 'public', cleanPath);
-    const rootPath = path.join(ROOT_DIR, cleanPath);
-    
     if (fs.existsSync(pubPath)) {
       filePath = pubPath;
-    } else if (fs.existsSync(rootPath)) {
-      filePath = rootPath;
     } else {
       filePath = path.join(ROOT_DIR, 'index.html');
     }
@@ -332,5 +257,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n==============================================`);
   console.log(`🚀 POWER UP System running on port ${PORT}`);
+  console.log(`==============================================\n`);
 });
