@@ -1,204 +1,169 @@
 <!DOCTYPE html>
-<html lang="en" id="html-root" dir="ltr">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <meta name="theme-color" content="#000000" />
-  <title>POWER UP BY NULLDASH</title>
-  
-  <link rel="icon" href="icon.png" type="image/png" sizes="32x32" />
-  <link rel="apple-touch-icon" href="apple-icon.png" type="image/png" sizes="180x180" />
-  <link rel="stylesheet" href="src/styles.css" />
-  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POWER UP — Client Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    @font-face {
-      font-family: 'JetBrains Mono';
-      font-style: normal;
-      font-weight: 400 800;
-      font-display: swap;
-      src: url('media/051742360c26797e-s.p.1bkzbscqrt8rl.woff2') format('woff2');
-    }
-    
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
-
     body {
       background-color: #050505;
       color: #cacaca;
-      font-family: 'JetBrains Mono', system-ui, -apple-system, sans-serif;
-      min-height: 100vh;
-      width: 100vw;
-      overflow-x: hidden;
+      font-family: 'JetBrains Mono', monospace, sans-serif;
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
-      position: relative;
-      padding: 20px;
+      align-items: center;
+      min-height: 100vh;
+      width: 100%;
+      overflow-x: hidden;
     }
-
     #app {
       width: 100%;
-      max-width: 400px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    /* تصميم شاشة تسجيل الدخول المطابق للصورة تماماً */
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+      background: #09090b;
+      border: 1px solid #1f1f23;
+      border-radius: 28px;
+      padding: 32px 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
-    }
-
-    .main-card {
-      background: #0a0a0a;
-      border: 1px solid #1f1f1f;
-      border-radius: 20px;
-      padding: 40px 24px;
-      width: 100%;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(229, 9, 20, 0.08);
       text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
     }
-
-    .brand-logo-img {
+    .logo-img {
       max-width: 210px;
       width: 100%;
       height: auto;
-      margin: 0 auto 24px auto;
-      display: block;
       object-fit: contain;
-      filter: drop-shadow(0 0 12px rgba(229, 9, 20, 0.3));
+      filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));
+      margin-bottom: 24px;
     }
-
-    .sub-description {
-      font-size: 12px;
-      color: #777777;
+    .login-desc {
+      font-size: 11.5px;
+      color: #71717a;
+      line-height: 1.5;
       margin-bottom: 28px;
       letter-spacing: 0.5px;
     }
-
-    .input-label {
-      font-size: 12px;
-      color: #aaaaaa;
+    .input-group-label {
+      width: 100%;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #a1a1aa;
+      letter-spacing: 1.5px;
       margin-bottom: 8px;
-      display: block;
-      font-weight: 600;
-      text-align: center;
+      text-transform: uppercase;
     }
-
     .input-wrapper {
-      position: relative;
+      width: 100%;
+      background: #050505;
+      border: 1px solid #27272a;
+      border-radius: 16px;
       display: flex;
       align-items: center;
-      background: #000000;
-      border: 1.5px solid #2d0d0d;
-      border-radius: 12px;
-      padding: 4px;
-      margin-bottom: 20px;
+      padding: 6px;
+      margin-bottom: 24px;
       transition: border-color 0.2s;
     }
-
     .input-wrapper:focus-within {
       border-color: #e50914;
     }
-
     .paste-btn {
-      background: #1a1a1a;
-      color: #cccccc;
-      border: 1px solid #333;
-      border-radius: 9px;
-      padding: 10px 14px;
-      font-size: 11px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s;
-      white-space: nowrap;
-    }
-
-    .key-input {
-      width: 100%;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #ffffff;
-      font-family: inherit;
-      font-size: 13px;
-      padding: 10px;
-      direction: ltr;
-      text-align: left;
-      font-weight: 600;
-      letter-spacing: 1px;
-    }
-
-    .key-input::placeholder {
-      color: #3b3b3b;
-      font-weight: normal;
-    }
-
-    .btn-unlock {
-      width: 100%;
-      background: #cc1111;
+      background: #18181b;
       border: none;
       border-radius: 12px;
-      padding: 14px;
-      color: #ffffff;
-      font-family: inherit;
-      font-size: 15px;
-      font-weight: bold;
-      letter-spacing: 1px;
+      color: #d4d4d8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 10px 16px;
       cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+      font-family: 'JetBrains Mono', monospace, sans-serif;
+      transition: background 0.2s;
+    }
+    .paste-btn:hover {
+      background: #27272a;
+    }
+    input#access-key-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-align: center;
+      outline: none;
+      font-family: 'JetBrains Mono', monospace, sans-serif;
+      letter-spacing: 1.5px;
+    }
+    input#access-key-input::placeholder {
+      color: #52525b;
+    }
+    button#unlock-btn {
+      width: 100%;
+      background: #e50914;
+      color: #ffffff;
+      border: none;
+      border-radius: 16px;
+      padding: 16px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);
+      transition: opacity 0.2s;
       margin-bottom: 20px;
     }
-
-    .footer-text {
-      font-size: 11.5px;
-      color: #666666;
+    button#unlock-btn:active {
+      opacity: 0.85;
+    }
+    .login-footer {
+      font-size: 10.5px;
+      color: #52525b;
       line-height: 1.6;
+      letter-spacing: 0.5px;
     }
   </style>
 </head>
 <body>
 
   <div id="app">
-    <div class="main-card">
-      <img src="logo.png" alt="POWER UP" class="brand-logo-img" />
-
-      <p class="sub-description">No account, no password. Your key only.</p>
-
-      <span class="input-label">Access Key</span>
+    <!-- واجهة تسجيل الدخول المطابقة للصورة -->
+    <div class="login-card">
+      <img src="logo.png" alt="POWER UP" class="logo-img" />
+      <div class="login-desc">No account, no password. Your key only.</div>
+      
+      <div class="input-group-label">Access Key</div>
       <div class="input-wrapper">
-        <button type="button" class="paste-btn" id="paste-btn">Paste</button>
-        <input 
-          type="text" 
-          id="access-key-input" 
-          class="key-input" 
-          placeholder="PWUP-XXXX-XXXX-XXXX" 
-          autocomplete="off" 
-          spellcheck="false" 
-        />
+        <button type="button" id="paste-btn" class="paste-btn">Paste</button>
+        <input type="text" id="access-key-input" placeholder="PWUP-XXXX-XXXX-XXXX" maxlength="19" />
       </div>
 
-      <button type="button" class="btn-unlock" id="unlock-btn">Unlock</button>
-
-      <p class="footer-text">
-        No key? Contact your seller.<br>
-        <span style="font-size: 10px; color: #444;">Time starts upon connection.</span>
-      </p>
+      <button id="unlock-btn">Unlock</button>
+      
+      <div class="login-footer">
+        No key? Contact your seller.<br>Time starts upon connection.
+      </div>
     </div>
   </div>
 
-  <script type="module" src="src/app.js"></script>
-
-  <script>
-    document.getElementById('paste-btn').addEventListener('click', async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-          document.getElementById('access-key-input').value = text.trim();
-        }
-      } catch (err) {
-        alert('Please allow clipboard permission');
-      }
-    });
-  </script>
+  <script type="module" src="/src/app.js"></script>
 </body>
 </html>
