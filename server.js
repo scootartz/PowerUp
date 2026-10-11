@@ -29,19 +29,6 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf'
 };
 
-// SSE Clients set
-const sseClients = new Set();
-
-function broadcastEvent(eventName, data) {
-  for (const client of sseClients) {
-    try {
-      client.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
-    } catch (e) {
-      sseClients.delete(client);
-    }
-  }
-}
-
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -64,28 +51,16 @@ function parseJsonBody(req) {
   });
 }
 
-function generateRandomKey(prefix = 'PHTM') {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const chunk = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  return `${prefix}-${chunk()}-${chunk()}-${chunk()}`;
-}
-
 function detectServerDevice(ua = '') {
   let os = 'Unknown OS';
-  let model = '23049PCD8G';
+  let model = 'Unknown Device';
 
   if (/Windows NT 10.0/i.test(ua)) {
     os = 'Windows 10/11 64-bit';
     model = 'Windows PC';
-  } else if (/iPhone/i.test(ua)) {
-    const v = ua.match(/OS (\d+[_\.]\d+)/);
-    os = v ? `iOS ${v[1].replace('_', '.')}` : 'iOS';
-    model = `iPhone`;
   } else if (/Android/i.test(ua)) {
-    const v = ua.match(/Android (\d+(\.\d+)?)/);
-    os = v ? `Android ${v[1]}` : 'Android';
-    const m = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
-    model = m ? m[1].trim() : '23049PCD8G';
+    os = 'Android';
+    model = 'Android Device';
   }
 
   return { os, model };
@@ -106,7 +81,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Client Key Authentication / Redeem
+  // 1. Client Key Authentication / Redeem & HWID Binding Logic
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -118,29 +93,33 @@ const server = http.createServer(async (req, res) => {
 
     const ua = req.headers['user-agent'] || '';
     const serverDev = detectServerDevice(ua);
-    const clientHwid = (body.hwid || '').trim() || '4231E308EED0D44B';
-    const clientDeviceModel = (body.device_model || '').trim() || serverDev.model;
-    const clientDeviceOs = (body.device_os || '').trim() || serverDev.os;
+    const clientHwid = (body.hwid || '').trim() || 'PWUP-J74D-ZFRQ';
 
     let keyRecord = db.findKey(key);
 
     if (!keyRecord) {
       keyRecord = {
-        key: key.startsWith('PHTM') ? key : `PHTM-${key.padEnd(4, 'X').slice(0, 4)}-VIP`,
+        key: key.startsWith('PWUP') ? key : `PWUP-${key}`,
         status: 'active',
         bound_hwid: clientHwid,
-        device_model: clientDeviceModel,
-        device_os: clientDeviceOs,
+        device_model: body.device_model || serverDev.model,
+        device_os: body.device_os || serverDev.os,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 3650 * 24 * 3600 * 1000).toISOString(),
-        note: 'Auto-Enrolled License',
         features: db.get().global_features
       };
       db.addKey(keyRecord);
     }
 
+    // التحقق من توافق HWID مع رسالة الخطأ الخاصة بقفل الجهاز
+    if (keyRecord.bound_hwid && keyRecord.bound_hwid !== clientHwid) {
+      return sendJson(res, 403, { 
+        error: 'This key is locked to another phone. Reset the device on the site (once every 7 days), then refresh here.' 
+      });
+    }
+
     if (!keyRecord.bound_hwid) {
-      db.updateKey(key, { bound_hwid: clientHwid, device_model: clientDeviceModel, device_os: clientDeviceOs });
+      db.updateKey(key, { bound_hwid: clientHwid });
     }
 
     return sendJson(res, 200, {
@@ -148,61 +127,45 @@ const server = http.createServer(async (req, res) => {
       me: {
         status: 'active',
         bound_hwid: keyRecord.bound_hwid || clientHwid,
-        device_model: keyRecord.device_model || clientDeviceModel,
-        device_os: keyRecord.device_os || clientDeviceOs,
         expires_at: keyRecord.expires_at,
-        features: keyRecord.features && Object.keys(keyRecord.features).length > 0 ? keyRecord.features : db.get().global_features
+        features: keyRecord.features || db.get().global_features
       }
     });
   }
 
-  // Features GET and PATCH
-  if (pathname === '/api/features') {
-    if (req.method === 'GET') {
-      return sendJson(res, 200, { features: db.get().global_features });
+  // 2. Features PATCH
+  if (pathname === '/api/features' && req.method === 'PATCH') {
+    const body = await parseJsonBody(req);
+    if (body.features) {
+      db.update(data => {
+        data.global_features = { ...data.global_features, ...body.features };
+      });
+      interceptor.setFeatures(db.get().global_features);
     }
-    if (req.method === 'PATCH') {
-      const body = await parseJsonBody(req);
-      if (body.features) {
-        db.update(data => {
-          data.global_features = { ...data.global_features, ...body.features };
-        });
-        interceptor.setFeatures(db.get().global_features);
-      }
-      return sendJson(res, 200, { ok: true, features: db.get().global_features });
-    }
+    return sendJson(res, 200, { ok: true, features: db.get().global_features });
   }
 
-  // Happ Tunnel Config Generation & Subscription Endpoint (مربوط بتوجيه Free Fire للـ VPN)
+  // 3. Happ Tunnel Config Generation (مع استثناء نطاق الموقع لمنع تعطله)
   if (pathname === '/api/happ') {
-    const key = searchParams.get('key') || 'AIMHACK-A212';
-    const nodes = db.get().nodes || [
-      { name: 'AimHack-A212', host: 'proxy.powerup.app', port: 443, ping: '24', status: 'online', flag: '🌐' }
-    ];
+    const key = searchParams.get('key') || 'PWUP-J74D-ZFRQ';
+    const hostDomain = req.headers.host || 'localhost';
 
     const configData = {
       version: '1.7',
       client: 'POWER UP',
       key: key,
       created_at: new Date().toISOString(),
-      nodes: nodes.map(n => ({
-        name: `${n.flag || '🌐'} ${n.name}`,
-        address: n.host,
-        port: n.port,
-        ping: `${n.ping}ms`,
-        status: n.status
-      })),
+      nodes: [
+        { name: 'POWERUP-VIP', address: hostDomain.split(':')[0], port: 443, ping: '24ms', status: 'online' }
+      ],
       active_features: db.get().global_features,
       routing: {
-        rules: [{ domain_suffix: ['freefiremobile.com', 'garena.com'], outbound: 'powerup-tunnel' }]
+        rules: [
+          { domain_suffix: [hostDomain, 'railway.app', 'localhost'], outbound: 'direct' },
+          { domain_suffix: ['freefiremobile.com', 'garena.com'], outbound: 'powerup-tunnel' }
+        ]
       }
     };
-
-    if (req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify(configData, null, 2));
-      return;
-    }
 
     const encoded = Buffer.from(JSON.stringify(configData)).toString('base64');
     return sendJson(res, 200, {
@@ -212,7 +175,7 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // Reset / Unbind HWID
+  // 4. Reset / Unbind HWID
   if (pathname === '/api/unbind-hwid' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     if (body.key) {
@@ -222,22 +185,54 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // Static Assets & Pages Routing
+  // 5. Admin Panel API Endpoints (لضمان عمل صفحة الأدمن بالكامل)
+  if (pathname.startsWith('/api/admin/')) {
+    const currentDb = db.get();
+    
+    if (pathname === '/api/admin/stats' && req.method === 'GET') {
+      return sendJson(res, 200, {
+        total_keys: currentDb.keys ? currentDb.keys.length : 0,
+        active_tunnels: 1
+      });
+    }
+
+    if (pathname === '/api/admin/keys' && req.method === 'GET') {
+      return sendJson(res, 200, { keys: currentDb.keys || [] });
+    }
+
+    if (pathname === '/api/admin/keys' && req.method === 'POST') {
+      const body = await parseJsonBody(req);
+      const newKey = {
+        key: body.key || `PWUP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        status: 'active',
+        bound_hwid: null,
+        created_at: new Date().toISOString(),
+        expires_at: body.expires_at || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        features: db.get().global_features
+      };
+      db.addKey(newKey);
+      return sendJson(res, 200, { ok: true, key: newKey });
+    }
+
+    if (pathname.startsWith('/api/admin/keys/') && req.method === 'DELETE') {
+      const keyToDelete = pathname.split('/').pop();
+      db.update(data => {
+        data.keys = (data.keys || []).filter(k => k.key !== keyToDelete);
+      });
+      return sendJson(res, 200, { ok: true });
+    }
+  }
+
+  // Static Files Routing (index.html, admin panel files, etc.)
   let filePath;
-  if (pathname === '/admin' || pathname === '/admin/') {
-    filePath = path.join(ROOT_DIR, 'public', 'admin.html');
-  } else if (pathname === '/' || pathname === '/index.html') {
+  if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
-  } else if (pathname.startsWith('/src/')) {
+  } else if (pathname === '/admin' || pathname === '/admin.html') {
+    filePath = path.join(ROOT_DIR, 'admin.html');
+  } else if (pathname.startsWith('/src/') || pathname.startsWith('/admin')) {
     filePath = path.join(ROOT_DIR, pathname);
   } else {
-    const cleanPath = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-    const pubPath = path.join(ROOT_DIR, 'public', cleanPath);
-    if (fs.existsSync(pubPath)) {
-      filePath = pubPath;
-    } else {
-      filePath = path.join(ROOT_DIR, 'index.html');
-    }
+    filePath = path.join(ROOT_DIR, 'index.html');
   }
 
   const ext = path.extname(filePath).toLowerCase();
@@ -255,7 +250,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n==============================================`);
   console.log(`🚀 POWER UP System running on port ${PORT}`);
-  console.log(`==============================================\n`);
 });
