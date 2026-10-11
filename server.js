@@ -6,10 +6,7 @@ const db = require('./data/db');
 const interceptor = require('./src/engine/packet_interceptor');
 const gameTunnel = require('./src/engine/game_tunnel');
 
-// Start active UDP game tunnel
 gameTunnel.start();
-
-// Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
 const PORT = process.env.PORT || 3000;
@@ -72,7 +69,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 1. Redeem API
+  // 1. Redeem API (التحقق من المفتاح وحفظه بقاعدة البيانات)
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -170,24 +167,24 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // 5. Admin Panel APIs (دعم توليد وإدارة المفاتيح بالكامل)
+  // 5. Admin Panel APIs (ربط حقيقي ومباشر مع قاعدة البيانات db)
   if (pathname === '/api/admin/overview' || pathname === '/api/admin/stats') {
-    const data = db.get();
+    const currentDb = db.get();
     return sendJson(res, 200, {
-      totalKeys: data.keys ? data.keys.length : 0,
-      activeKeys: data.keys ? data.keys.filter(k => k.status === 'active').length : 0,
-      total_keys: data.keys ? data.keys.length : 0,
+      totalKeys: currentDb.keys ? currentDb.keys.length : 0,
+      activeKeys: currentDb.keys ? currentDb.keys.filter(k => k.status === 'active').length : 0,
+      total_keys: currentDb.keys ? currentDb.keys.length : 0,
       active_tunnels: 1,
-      maintenance: data.maintenance
+      maintenance: currentDb.maintenance
     });
   }
 
   if (pathname === '/api/admin/keys' && req.method === 'GET') {
-    const data = db.get();
-    return sendJson(res, 200, { keys: data.keys || [] });
+    const currentDb = db.get();
+    return sendJson(res, 200, { keys: currentDb.keys || [] });
   }
 
-  // دعم مسارات توليد المفاتيح (POST)
+  // توليد وحفظ المفاتيح بشكل دائم في قاعدة البيانات
   if (pathname === '/api/admin/keys' || pathname === '/api/admin/keys/generate') {
     if (req.method === 'POST') {
       const body = await parseJsonBody(req);
@@ -208,7 +205,7 @@ const server = http.createServer(async (req, res) => {
           note: note,
           features: db.get().global_features
         };
-        db.addKey(newKeyObj);
+        db.addKey(newKeyObj); // حفظ المفتاح داخل قاعدة البيانات ملفات الـ JSON
         createdKeys.push(newKeyObj);
       }
 
@@ -219,7 +216,7 @@ const server = http.createServer(async (req, res) => {
   const deleteKeyMatch = pathname.match(/^\/api\/admin\/keys\/([^/]+)$/);
   if (deleteKeyMatch && req.method === 'DELETE') {
     const targetKey = decodeURIComponent(deleteKeyMatch[1]);
-    db.deleteKey(targetKey);
+    db.deleteKey(targetKey); // حذف المفتاح من قاعدة البيانات
     return sendJson(res, 200, { ok: true });
   }
 
