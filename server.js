@@ -6,7 +6,10 @@ const db = require('./data/db');
 const interceptor = require('./src/engine/packet_interceptor');
 const gameTunnel = require('./src/engine/game_tunnel');
 
+// Start active UDP game tunnel
 gameTunnel.start();
+
+// Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
 const PORT = process.env.PORT || 3000;
@@ -167,7 +170,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // 5. Admin Panel APIs (تم تصحيح ودعم مسارات توليد المفاتيح هنا)[span_1](start_span)[span_1](end_span)
+  // 5. Admin Panel APIs (دعم توليد وإدارة المفاتيح بالكامل)
   if (pathname === '/api/admin/overview' || pathname === '/api/admin/stats') {
     const data = db.get();
     return sendJson(res, 200, {
@@ -184,31 +187,33 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { keys: data.keys || [] });
   }
 
-  // دعم مساري توليد المفاتيح لكي يعمل زر Generate في أي بانل بدون مشاكل[span_2](start_span)[span_2](end_span)
-  if ((pathname === '/api/admin/keys' || pathname === '/api/admin/keys/generate') && req.method === 'POST') {
-    const body = await parseJsonBody(req);
-    const count = Math.min(Math.max(parseInt(body.count, 10) || 1, 1), 50);
-    const durationDays = parseInt(body.days, 10) || 30;
-    const note = body.note || 'Generated from Admin Panel';
-    const prefix = (body.prefix || 'PWUP').trim().toUpperCase();
+  // دعم مسارات توليد المفاتيح (POST)
+  if (pathname === '/api/admin/keys' || pathname === '/api/admin/keys/generate') {
+    if (req.method === 'POST') {
+      const body = await parseJsonBody(req);
+      const count = Math.min(Math.max(parseInt(body.count, 10) || 1, 1), 50);
+      const durationDays = parseInt(body.days, 10) || 30;
+      const note = body.note || 'Generated from Admin Panel';
+      const prefix = (body.prefix || 'PWUP').trim().toUpperCase();
 
-    const createdKeys = [];
-    for (let i = 0; i < count; i++) {
-      const newKeyStr = generateRandomKey(prefix);
-      const newKeyObj = {
-        key: newKeyStr,
-        status: 'active',
-        bound_hwid: null,
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString(),
-        note: note,
-        features: db.get().global_features
-      };
-      db.addKey(newKeyObj);
-      createdKeys.push(newKeyObj);
+      const createdKeys = [];
+      for (let i = 0; i < count; i++) {
+        const newKeyStr = generateRandomKey(prefix);
+        const newKeyObj = {
+          key: newKeyStr,
+          status: 'active',
+          bound_hwid: null,
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString(),
+          note: note,
+          features: db.get().global_features
+        };
+        db.addKey(newKeyObj);
+        createdKeys.push(newKeyObj);
+      }
+
+      return sendJson(res, 200, { ok: true, keys: createdKeys, key: createdKeys[0] });
     }
-
-    return sendJson(res, 200, { ok: true, keys: createdKeys, key: createdKeys[0] });
   }
 
   const deleteKeyMatch = pathname.match(/^\/api\/admin\/keys\/([^/]+)$/);
@@ -218,7 +223,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true });
   }
 
-  // 6. Static Routing & Admin Panel Files[span_3](start_span)[span_3](end_span)
+  // 6. Static Routing & Admin Panel Files
   let filePath;
   if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
