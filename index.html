@@ -3,27 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AIMHACK — Client Portal</title>
+  <title>POWER UP — Client Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body {
       background-color: #050505;
       color: #cacaca;
       font-family: 'JetBrains Mono', monospace, sans-serif;
-      margin: 0;
-      padding: 0;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
+      width: 100%;
+      overflow-x: hidden;
+    }
+    #app {
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
     #login-container {
       width: 100%;
       max-width: 360px;
-      padding: 24px;
-      box-sizing: border-box;
+      padding: 24px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -37,7 +49,7 @@
       object-fit: contain;
       filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));
     }
-    input {
+    input#access-key-input {
       width: 100%;
       background: #0a0a0a;
       border: 1px solid #1f1f1f;
@@ -45,13 +57,14 @@
       padding: 14px 18px;
       color: #ffffff;
       font-size: 12px;
+      font-weight: 700;
       text-align: center;
       outline: none;
-      box-sizing: border-box;
       font-family: 'JetBrains Mono', monospace, sans-serif;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
+      transition: border-color 0.2s;
     }
-    input:focus {
+    input#access-key-input:focus {
       border-color: #e50914;
     }
     button#unlock-btn {
@@ -67,17 +80,20 @@
       text-transform: uppercase;
       cursor: pointer;
       box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);
+      transition: opacity 0.2s;
+    }
+    button#unlock-btn:active {
+      opacity: 0.85;
     }
   </style>
 </head>
 <body>
 
   <div id="app">
-    <!-- شاشة تسجيل الدخول الافتراضية مع الشعار الأصلي -->
+    <!-- واجهة تسجيل الدخول الشفافة التي تظهر قبل الشاشة الرئيسية -->
     <div id="login-container">
-      <img src="logo.png" alt="AIMHACK" class="logo-img" onerror="this.style.display='none'" />
-      <div style="font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #ffffff;">AIMHACK PORTAL</div>
-      <input type="text" id="access-key-input" placeholder="ENTER ACCESS KEY" />
+      <img src="logo.png" alt="POWER UP" class="logo-img" />
+      <input type="text" id="access-key-input" placeholder="ENTER ACCESS KEY" maxlength="19" />
       <button id="unlock-btn">UNLOCK</button>
     </div>
   </div>
