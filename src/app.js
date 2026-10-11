@@ -2,10 +2,10 @@ import { CONFIG } from './config.js';
 import { TRANSLATIONS } from './translations.js';
 import { Icons } from './icons.js';
 
+// State Store
 const state = {
   lang: localStorage.getItem('powerup_lang') || 'en',
-  isLangOpen: false,
-  tab: 'status',
+  tab: 'status', // 'status' | 'features' | 'manage'
   auth: {
     loggedIn: false,
     key: '',
@@ -21,9 +21,18 @@ const state = {
   keyInput: '',
   loading: false,
   error: null,
-  maintenance: { enabled: false, blocked: false, title: 'maintenance', message: '' }
+  maintenance: {
+    enabled: false,
+    blocked: false,
+    title: 'maintenance',
+    message: "we're doing maintenance. everything is paused until we're back."
+  },
+  happLoading: false,
+  happError: null,
+  timerInterval: null
 };
 
+// Check local storage session
 const savedSession = localStorage.getItem('powerup_session');
 if (savedSession) {
   try {
@@ -37,131 +46,323 @@ if (savedSession) {
   } catch (e) {}
 }
 
+// Translation helper
 function t(key) {
   const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
   return dict[key] || TRANSLATIONS.en[key] || key;
 }
 
+// Real Hardware Fingerprinting & Actual Device Identification
+async function getRealClientDevice() {
+  const ua = navigator.userAgent || '';
+  let os = 'Unknown OS';
+  let deviceName = 'Unknown Device';
+
+  if (/Windows NT 10.0/i.test(ua)) os = 'Windows 10/11';
+  else if (/iPhone/i.test(ua)) os = 'iOS';
+  else if (/iPad/i.test(ua)) os = 'iPadOS';
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS';
+  else if (/Android/i.test(ua)) {
+    const m = ua.match(/Android (\d+(\.\d+)?)/);
+    os = m ? `Android ${m[1]}` : 'Android';
+  } else if (/Linux/i.test(ua)) os = 'Linux';
+
+  let gpuRenderer = '';
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (gl) {
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        const raw = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+        gpuRenderer = raw.replace(/ANGLE \(\vert{}, Direct3D.*\vert{}\)/g, '').trim();
+      }
+    }
+  } catch (e) {}
+
+  if (/Android/i.test(ua)) {
+    const modelMatch = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
+    const model = modelMatch ? modelMatch[1].trim() : 'Android Device';
+    deviceName = `${model} (${os})`;
+  } else if (/Windows/i.test(ua)) {
+    deviceName = gpuRenderer ? `Windows PC (${gpuRenderer})` : `Windows PC (${os})`;
+  } else {
+    deviceName = `${os} Device`;
+  }
+
+  let hwid = localStorage.getItem('powerup_hwid');
+  if (!hwid) {
+    const seed = (navigator.platform || '') + (navigator.hardwareConcurrency || 4) + gpuRenderer;
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) {
+      h = ((h << 5) - h) + seed.charCodeAt(i);
+      h |= 0;
+    }
+    hwid = `PWUP-${Math.abs(h).toString(16).padStart(8, '0').slice(0, 8).toUpperCase()}`;
+    localStorage.setItem('powerup_hwid', hwid);
+  }
+
+  return { hwid, device_model: deviceName, device_os: os };
+}
+
+function formatKey(val) {
+  return (
+    val
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 16)
+      .match(/.{1,4}/g) ?? []
+  ).join('-');
+}
+
 function formatCountdown(targetIso) {
-  if (!targetIso) return '3649D 18H';
+  if (!targetIso) return '—';
   const diff = new Date(targetIso).getTime() - Date.now();
-  if (diff <= 0) return 'EXPIRED';
+  if (diff <= 0) return '<span class="font-semibold text-accent-bad">expired</span>';
   const sec = Math.floor(diff / 1000);
   const days = Math.floor(sec / 86400);
   const hours = Math.floor((sec % 86400) / 3600);
   const mins = Math.floor((sec % 3600) / 60);
-  if (days > 0) return `${days}D ${hours}H`;
-  if (hours > 0) return `${hours}H ${mins}M`;
-  return `${mins}M`;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
 }
 
-async function getRealClientDevice() {
-  let hwid = localStorage.getItem('powerup_hwid');
-  if (!hwid) {
-    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
-    localStorage.setItem('powerup_hwid', hwid);
-  }
-  return { hwid, device_model: 'Android Device', device_os: 'Android' };
+async function checkMaintenance() {
+  try {
+    const res = await fetch('/api/maintenance');
+    if (res.ok) {
+      state.maintenance = await res.json();
+      render();
+    }
+  } catch (e) {}
 }
 
-function formatKey(val) {
-  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 19).match(/.{1,4}/g) ?? []).join('-');
+function initSSE() {
+  try {
+    const es = new EventSource('/api/events');
+    es.addEventListener('maintenance', (e) => {
+      try {
+        state.maintenance = JSON.parse(e.data);
+        render();
+      } catch (err) {}
+    });
+    es.addEventListener('logout', (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (!d.key || d.key === state.auth.key) logout();
+      } catch (err) {}
+    });
+  } catch (e) {}
 }
 
 function render() {
   const root = document.getElementById('app');
   if (!root) return;
 
-  if (!state.auth.loggedIn) {
-    root.innerHTML = renderKeyGate();
-  } else {
-    root.innerHTML = renderDashboard();
-  }
-  attachEvents();
-}
+  const isRtl = state.lang === 'ar';
+  document.documentElement.setAttribute('lang', state.lang);
+  document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
+  document.title = 'POWER UP — Client Portal';
 
-function renderKeyGate() {
-  return `
-    <div style="background: #09090b; border: 1px solid #1f1f23; border-radius: 28px; padding: 32px 20px; width: 100%; max-width: 380px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8); text-align: center; display: flex; flex-direction: column; align-items: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 190px; width: 100%; height: auto; margin-bottom: 20px; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
-      <p style="font-size: 11.5px; color: #71717a; margin-bottom: 24px; letter-spacing: 0.5px;">No account, no password. Your key only.</p>
-      
-      <form id="key-form" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-        <span style="font-size: 11px; color: #a1a1aa; margin-bottom: 8px; display: block; font-weight: 700; text-align: left; text-transform: uppercase; letter-spacing: 1.5px; width: 100%;">Access Key</span>
-        
-        <div style="position: relative; display: flex; align-items: center; background: #050505; border: 1px solid #27272a; border-radius: 16px; padding: 6px; margin-bottom: 24px; width: 100%;">
-          <button type="button" id="paste-btn" style="background: #18181b; color: #d4d4d8; border: none; border-radius: 12px; padding: 10px 14px; font-size: 11px; cursor: pointer; font-weight: 700; flex-shrink: 0;">Paste</button>
-          <input 
-            id="key-input"
-            type="text"
-            placeholder="PWUP-XXXX-XXXX-XXXX" 
-            spellcheck="false" 
-            autocomplete="off" 
-            autofocus 
-            style="width: 100%; background: transparent; border: none; outline: none; color: #ffffff; font-size: 11.5px; padding: 8px; text-align: center; font-weight: 600; letter-spacing: 1.5px;"
-            value="${state.keyInput}"
-            maxlength="19"
-          />
-        </div>
-        
-        ${state.error ? `<p style="color: #e50914; font-size: 12px; margin-bottom: 12px;">${state.error}</p>` : ''}
-        
-        <button type="submit" style="width: 100%; background: #e50914; border: none; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3); margin-bottom: 20px;" ${state.loading ? 'disabled' : ''}>
-          ${state.loading ? 'Authenticating...' : 'Unlock'}
-        </button>
-      </form>
-      
-      <p style="font-size: 10.5px; color: #52525b; line-height: 1.6; text-align: center; margin-top: 10px;">No key? Contact your seller.<br/>Time starts upon connection.</p>
+  let html = '';
+
+  html += `
+    <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#050505]">
+      <div class="absolute left-1/2 top-[-14%] h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-[#e50914]/[0.06] blur-[120px]"></div>
+      <div class="absolute bottom-[-18%] right-[-12%] h-[480px] w-[480px] rounded-full bg-[#e50914]/[0.04] blur-[120px]"></div>
     </div>
   `;
+
+  if (state.maintenance && state.maintenance.enabled) {
+    html += `
+      <div class="fixed inset-x-0 top-0 z-50 flex items-start justify-center gap-2 bg-[#fbbf24]/15 px-4 py-2.5 text-center text-[11px] text-[#fbbf24] backdrop-blur">
+        <span><span class="font-bold uppercase">${t('maintenance_title')}</span> · ${state.maintenance.message || t('maintenance_body')}</span>
+      </div>
+    `;
+  }
+
+  if (!state.auth.loggedIn) {
+    // إذا لم يكن مسجلاً للدخول، يتم ترك العرض لـ index.html الأساسي لتفادي أي تداخل
+    return;
+  } else {
+    html += renderDashboard();
+  }
+
+  root.innerHTML = html;
+  attachEvents();
 }
 
 function renderDashboard() {
   const me = state.auth.me;
-  const expiresCountdown = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px;">
-      <div style="width: 100%; display: flex; justify-content: flex-start; align-items: center; padding: 0 4px;">
-        <span style="color: #10b981; font-weight: 800; font-size: 11px; letter-spacing: 2px;">● CONNECTED</span>
-      </div>
+    <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6">
       
-      <img src="logo.png" alt="POWER UP" style="max-width: 190px; width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
-
-      <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 14px 18px; display: flex; justify-content: center; align-items: center;">
-        <span style="font-size: 11.5px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key}</span>
-      </div>
-
-      <div style="width: 100%;">
-        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);">
-          OPEN HAPP VPN
+      <!-- Header مع زر اللغة الأحادي النظيف -->
+      <div class="flex items-center justify-between gap-3 px-1 py-4">
+        <div class="flex min-w-0 items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-white">
+          <span class="h-2 w-2 shrink-0 rounded-full bg-[#10b981]"></span>
+          ${me.status}
+        </div>
+        
+        <button id="single-lang-btn" class="bg-[#121212] text-[#dddddd] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-xs font-bold transition-colors hover:bg-[#1f1f1f]">
+          ${state.lang === 'ar' ? 'English' : 'عربي'}
         </button>
       </div>
 
-      <!-- زر تحميل Happ VPN (Google Play) -->
-      <a href="https://play.google.com/store/apps/details?id=com.happ.proxy" target="_blank" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 16px 20px; color: #22c55e; text-decoration: none; font-size: 12.5px; font-weight: 700; font-family: inherit; transition: background 0.2s;">
-        <span>Happ VPN (Google Play)</span>
-        <span style="font-size: 14px;">↗</span>
-      </a>
+      <div class="flex flex-1 flex-col animate-rise">
+        ${state.tab === 'status' ? renderStatusTab(me) : ''}
+        ${state.tab === 'features' ? renderFeaturesTab(me) : ''}
+        ${state.tab === 'manage' ? renderManageTab() : ''}
+      </div>
 
-      <!-- زر تحميل Happ VPN (App Store) -->
-      <a href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 15, 15, 0.85); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 16px 20px; color: #ffffff; text-decoration: none; font-size: 12.5px; font-weight: 700; font-family: inherit; transition: background 0.2s;">
-        <span>Happ VPN (App Store)</span>
-        <span style="font-size: 14px;">↗</span>
-      </a>
+    </main>
+    ${renderBottomNav()}
+  `;
+}
 
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: 4px;">
-        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresCountdown}</span>
-      </p>
+function renderStatusTab(me) {
+  const expiresCountdown = formatCountdown(me.expires_at);
 
-      <div style="margin-top: 10px;">
-        <button id="logout-btn" style="background: transparent; border: 1px solid #e50914; color: #e50914; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; font-family: inherit;">Log out</button>
+  return `
+    <div class="flex flex-1 flex-col items-center justify-between gap-8 py-4">
+      <div class="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+        <div style="font-size: 42px; font-weight: 900; color: #ffffff; line-height: 0.95; letter-spacing: 2px; text-transform: uppercase; filter: drop-shadow(0 0 16px rgba(229, 9, 20, 0.5));">
+          POWER
+          <span style="color: #e50914; display: block; font-size: 48px;">UP</span>
+        </div>
+
+        <div class="mt-4 flex flex-col gap-2 bg-[#0a0a0a] border border-[#1f1f1f] p-4 rounded-2xl w-full text-left">
+          <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">HWID: <span class="font-bold text-white">${me.bound_hwid || 'Not locked'}</span></p>
+          <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">Device: <span class="font-bold text-white">${me.device_model || 'Active'}</span></p>
+          <p class="text-xs uppercase tracking-[0.15em] text-[#8a8a8e]">Expires: <span id="countdown-display" class="font-bold text-[#e50914]">${expiresCountdown}</span></p>
+        </div>
+      </div>
+
+      <div class="w-full">
+        <button id="happ-btn" class="btn w-full uppercase tracking-[0.15em] bg-[#e50914] text-white hover:bg-[#c40711]" ${state.happLoading ? 'disabled' : ''}>
+          ${state.happLoading ? 'Connecting...' : `${Icons.arrowUpRight(15)}${t('add_to_happ')}`}
+        </button>
       </div>
     </div>
   `;
 }
 
+function renderFeaturesTab(me) {
+  const f = me.features;
+  const marker = f.marker || { enabled: true, type: 'Power' };
+  const aimpoint = f.aimpoint || { enabled: false };
+  const gloo = f.gloo || { enabled: false, yawDeg: 180 };
+  const fastRevive = f.fastRevive || { enabled: false };
+
+  return `
+    <div class="flex flex-col gap-4">
+      <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">${t('features_title')}</div>
+
+      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Marker Type</span>
+          <button type="button" data-toggle="marker" class="relative h-6 w-11 rounded-full transition-colors ${marker.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${marker.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_marker')}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          ${CONFIG.MARKER_TYPES.map(type => `
+            <button data-marker-type="${type}" class="rounded-xl px-3 py-1.5 text-xs transition-colors ${marker.type === type ? 'bg-[#e50914] font-bold text-white' : 'bg-white/[0.04] text-[#8a8a8e] hover:text-white'}">${type}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Aimpoint (Neck Lock)</span>
+          <button type="button" data-toggle="aimpoint" class="relative h-6 w-11 rounded-full transition-colors ${aimpoint.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${aimpoint.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_aimpoint')}</p>
+      </div>
+
+      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Gloo Rotation</span>
+          <button type="button" data-toggle="gloo" class="relative h-6 w-11 rounded-full transition-colors ${gloo.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${gloo.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_gloo')}</p>
+      </div>
+
+      <div class="card p-5 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-[0.2em] text-[#8a8a8e]">Fast Revive</span>
+          <button type="button" data-toggle="fastRevive" class="relative h-6 w-11 rounded-full transition-colors ${fastRevive.enabled ? 'bg-[#e50914]' : 'bg-white/10'}">
+            <span class="absolute top-0.5 h-5 w-5 rounded-full transition-all ${fastRevive.enabled ? 'left-[calc(100%-1.375rem)] bg-white' : 'left-0.5 bg-gray-400'}"></span>
+          </button>
+        </div>
+        <p class="feat-desc text-[11px] text-[#777] mt-2">${t('d_revive')}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderManageTab() {
+  return `
+    <div class="flex flex-1 flex-col gap-3">
+      <div class="px-1 text-sm font-bold uppercase tracking-[0.2em] text-white">Management</div>
+
+      <button id="unbind-hwid-btn" class="w-full text-left">
+        <div class="card flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#1f1f1f] rounded-2xl hover:border-[#e50914]/50 transition-colors">
+          <span class="text-sm text-white">Reset Device Lock (Unbind HWID)</span>
+          ${Icons.chevronRight(16, 'text-[#777]}')}
+        </div>
+      </button>
+
+      <div class="mt-auto pt-6">
+        <button id="logout-btn" class="w-full text-left">
+          <div class="card flex items-center justify-between p-4 bg-[#0a0a0a] border border-[#e50914]/30 rounded-2xl hover:border-[#e50914]">
+            <span class="text-sm text-[#e50914] font-bold">${t('log_out')}</span>
+            ${Icons.chevronRight(16, 'text-[#e50914]}')}
+          </div>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBottomNav() {
+  const tabs = [
+    { id: 'status', label: t('nav_home'), icon: Icons.skull(18) },
+    { id: 'features', label: t('nav_features'), icon: Icons.slidersHorizontal(18) },
+    { id: 'manage', label: t('nav_manage'), icon: Icons.settings(18) }
+  ];
+
+  return `
+    <nav class="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-3">
+      <div class="pointer-events-auto flex items-stretch gap-1 rounded-[20px] bg-[#0a0a0a]/90 border border-[#1f1f1f] p-1.5 backdrop-blur-xl shadow-2xl">
+        ${tabs.map(item => `
+          <button data-nav-tab="${item.id}" class="flex w-[72px] flex-col items-center justify-center gap-1 rounded-[14px] py-2 transition-all ${state.tab === item.id ? 'bg-[#e50914] text-white font-bold shadow-lg shadow-[#e50914]/30' : 'text-[#8a8a8e] hover:text-white'}">
+            ${item.icon}
+            <span class="text-[9.5px] uppercase tracking-[0.08em]">${item.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </nav>
+  `;
+}
+
 function attachEvents() {
+  const langBtn = document.getElementById('single-lang-btn');
+  if (langBtn) {
+    langBtn.addEventListener('click', () => {
+      state.lang = state.lang === 'en' ? 'ar' : 'en';
+      localStorage.setItem('powerup_lang', state.lang);
+      render();
+    });
+  }
+
   const keyInput = document.getElementById('key-input');
   if (keyInput) {
     keyInput.addEventListener('input', (e) => {
@@ -171,8 +372,99 @@ function attachEvents() {
     });
   }
 
-  const pasteBtn = document.getElementById('paste-btn');
-  if (pasteBtn && keyInput) {
-    pasteBtn.addEventListener('click', async () => {
+  const keyForm = document.getElementById('key-form');
+  if (keyForm) {
+    keyForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = state.keyInput.trim();
+      if (!val) { state.error = 'Enter your key'; render(); return; }
+
+      state.loading = true;
+      render();
+
       try {
-        const text = await navigator.clipboard.readText();
+        const devInfo = await getRealClientDevice();
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: val, hwid: devInfo.hwid, device_model: devInfo.device_model, device_os: devInfo.device_os })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          state.auth.loggedIn = true;
+          state.auth.key = val;
+          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
+          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me, features: state.auth.me.features }));
+          render();
+        } else {
+          state.error = data.error || 'Invalid key';
+          state.loading = false;
+          render();
+        }
+      } catch (err) {
+        state.error = 'Network error';
+        state.loading = false;
+        render();
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-nav-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.tab = btn.getAttribute('data-nav-tab');
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const field = btn.getAttribute('data-toggle');
+      const f = state.auth.me.features;
+      if (field === 'marker') f.marker.enabled = !f.marker.enabled;
+      else if (field === 'aimpoint') f.aimpoint.enabled = !f.aimpoint.enabled;
+      else if (field === 'gloo') f.gloo.enabled = !f.gloo.enabled;
+      else if (field === 'fastRevive') f.fastRevive.enabled = !f.fastRevive.enabled;
+      render();
+      saveFeatures(f);
+    });
+  });
+
+  document.querySelectorAll('[data-marker-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.auth.me.features.marker.type = btn.getAttribute('data-marker-type');
+      render();
+      saveFeatures(state.auth.me.features);
+    });
+  });
+
+  const unbindBtn = document.getElementById('unbind-hwid-btn');
+  if (unbindBtn) {
+    unbindBtn.addEventListener('click', async () => {
+      if (!confirm('Unbind device lock?')) return;
+      await fetch('/api/unbind-hwid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: state.auth.key }) });
+      logout();
+    });
+  }
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+}
+
+async function saveFeatures(f) {
+  localStorage.setItem('powerup_session', JSON.stringify({ key: state.auth.key, me: state.auth.me, features: f }));
+  try {
+    await fetch('/api/features', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: f, key: state.auth.key }) });
+  } catch (e) {}
+}
+
+function logout() {
+  localStorage.removeItem('powerup_session');
+  state.auth.loggedIn = false;
+  state.auth.key = '';
+  render();
+}
+
+checkMaintenance();
+initSSE();
+render();
