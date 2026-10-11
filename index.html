@@ -1,167 +1,239 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html-root" dir="ltr" class="h-full antialiased">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="theme-color" content="#000000" />
   <title>POWER UP — Client Portal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="icon" href="icon.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="apple-icon.png" type="image/png" sizes="180x180" />
+  <link rel="stylesheet" href="src/styles.css" />
+  
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    @font-face {
+      font-family: 'JetBrains Mono';
+      font-style: normal;
+      font-weight: 400 800;
+      font-display: swap;
+      src: url('media/051742360c26797e-s.p.1bkzbscqrt8rl.woff2') format('woff2');
     }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       background-color: #050505;
       color: #cacaca;
-      font-family: 'JetBrains Mono', monospace, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-family: 'JetBrains Mono', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
-      width: 100%;
+      width: 100vw;
       overflow-x: hidden;
-    }
-    #app {
-      width: 100%;
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
+      position: relative;
+    }
+
+    .top-bar {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: flex-start;
+      z-index: 10;
+    }
+
+    #html-root[dir="rtl"] .top-bar { justify-content: flex-end; }
+
+    .lang-btn {
+      background: #121212;
+      color: #dddddd;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: bold;
+      font-family: inherit;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
       align-items: center;
     }
-    .login-card {
-      width: 100%;
-      max-width: 360px;
+
+    .main-card {
       background: #09090b;
       border: 1px solid #1f1f23;
       border-radius: 28px;
       padding: 32px 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
       text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
     }
-    .logo-img {
+
+    .brand-logo-img {
       max-width: 210px;
       width: 100%;
       height: auto;
+      margin: 0 auto 20px auto;
+      display: block;
       object-fit: contain;
       filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));
-      margin-bottom: 24px;
     }
-    .login-desc {
+
+    .sub-description {
       font-size: 11.5px;
       color: #71717a;
-      line-height: 1.5;
       margin-bottom: 28px;
       letter-spacing: 0.5px;
     }
-    .input-group-label {
-      width: 100%;
-      text-align: left;
+
+    .input-label {
       font-size: 11px;
-      font-weight: 700;
       color: #a1a1aa;
-      letter-spacing: 1.5px;
       margin-bottom: 8px;
+      display: block;
+      font-weight: 700;
+      text-align: left;
       text-transform: uppercase;
+      letter-spacing: 1.5px;
     }
+
     .input-wrapper {
-      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
       background: #050505;
       border: 1px solid #27272a;
       border-radius: 16px;
-      display: flex;
-      align-items: center;
       padding: 6px;
       margin-bottom: 24px;
-      transition: border-color 0.2s;
     }
-    .input-wrapper:focus-within {
-      border-color: #e50914;
-    }
+
+    .input-wrapper:focus-within { border-color: #e50914; }
+
     .paste-btn {
       background: #18181b;
+      color: #d4d4d8;
       border: none;
       border-radius: 12px;
-      color: #d4d4d8;
-      font-size: 11px;
-      font-weight: 700;
       padding: 10px 16px;
+      font-size: 11px;
       cursor: pointer;
-      font-family: 'JetBrains Mono', monospace, sans-serif;
-      transition: background 0.2s;
+      font-weight: 700;
+      font-family: inherit;
     }
-    .paste-btn:hover {
-      background: #27272a;
-    }
-    input#access-key-input {
-      flex: 1;
+
+    .key-input {
+      width: 100%;
       background: transparent;
       border: none;
-      color: #ffffff;
-      font-size: 11.5px;
-      font-weight: 600;
-      text-align: center;
       outline: none;
-      font-family: 'JetBrains Mono', monospace, sans-serif;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 11.5px;
+      padding: 10px;
+      text-align: center;
+      font-weight: 600;
       letter-spacing: 1.5px;
     }
-    input#access-key-input::placeholder {
-      color: #52525b;
-    }
-    button#unlock-btn {
+
+    .btn-unlock {
       width: 100%;
       background: #e50914;
-      color: #ffffff;
       border: none;
       border-radius: 16px;
       padding: 16px;
+      color: #ffffff;
+      font-family: inherit;
       font-size: 13px;
       font-weight: 800;
       letter-spacing: 2px;
       text-transform: uppercase;
       cursor: pointer;
       box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);
-      transition: opacity 0.2s;
       margin-bottom: 20px;
     }
-    button#unlock-btn:active {
-      opacity: 0.85;
-    }
-    .login-footer {
+
+    .footer-text {
       font-size: 10.5px;
       color: #52525b;
       line-height: 1.6;
-      letter-spacing: 0.5px;
     }
   </style>
 </head>
 <body>
 
+  <div class="top-bar">
+    <button type="button" class="lang-btn" id="lang-toggle-btn" onclick="toggleLanguage()">English</button>
+  </div>
+
   <div id="app">
-    <div class="login-card">
-      <img src="logo.png" alt="POWER UP" class="logo-img" />
-      <div class="login-desc">No account, no password. Your key only.</div>
-      
-      <div class="input-group-label">Access Key</div>
+    <div class="main-card">
+      <img src="logo.png" alt="POWER UP" class="brand-logo-img" />
+
+      <p class="sub-description" id="text-desc">No account, no password. Your key only.</p>
+
+      <span class="input-label" id="text-label">Access Key</span>
       <div class="input-wrapper">
-        <button type="button" id="paste-btn" class="paste-btn">Paste</button>
-        <input type="text" id="access-key-input" placeholder="PWUP-XXXX-XXXX-XXXX" maxlength="19" />
+        <button type="button" class="paste-btn" id="paste-btn">Paste</button>
+        <input 
+          type="text" 
+          id="access-key-input" 
+          class="key-input" 
+          placeholder="PWUP-XXXX-XXXX-XXXX" 
+          autocomplete="off" 
+          spellcheck="false" 
+          maxlength="19"
+        />
       </div>
 
-      <button id="unlock-btn">Unlock</button>
-      
-      <div class="login-footer">
-        No key? Contact your seller.<br>Time starts upon connection.
-      </div>
+      <button type="button" class="btn-unlock" id="unlock-btn">Unlock</button>
+
+      <p class="footer-text" id="text-footer">
+        No key? Contact your seller.<br>
+        <span id="text-subfooter">Time starts upon connection.</span>
+      </p>
     </div>
   </div>
 
-  <script type="module" src="/src/app.js"></script>
+  <script type="module" src="src/app.js"></script>
+
+  <script>
+    let currentLang = 'en';
+    function toggleLanguage() {
+      const htmlRoot = document.getElementById('html-root');
+      const langBtn = document.getElementById('lang-toggle-btn');
+      if (currentLang === 'en') {
+        currentLang = 'ar';
+        htmlRoot.setAttribute('dir', 'rtl');
+        htmlRoot.setAttribute('lang', 'ar');
+        langBtn.textContent = 'عربي';
+      } else {
+        currentLang = 'en';
+        htmlRoot.setAttribute('dir', 'ltr');
+        htmlRoot.setAttribute('lang', 'en');
+        langBtn.textContent = 'English';
+      }
+    }
+
+    document.getElementById('paste-btn').addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          document.getElementById('access-key-input').value = text.trim();
+        }
+      } catch (err) {
+        alert('Please allow clipboard permission');
+      }
+    });
+  </script>
 </body>
 </html>
