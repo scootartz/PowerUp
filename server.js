@@ -6,10 +6,7 @@ const db = require('./data/db');
 const interceptor = require('./src/engine/packet_interceptor');
 const gameTunnel = require('./src/engine/game_tunnel');
 
-// Start active UDP game tunnel
 gameTunnel.start();
-
-// Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
 const PORT = process.env.PORT || 3000;
@@ -28,19 +25,6 @@ const MIME_TYPES = {
   '.woff': 'font/woff',
   '.ttf': 'font/ttf'
 };
-
-// SSE Clients set
-const sseClients = new Set();
-
-function broadcastEvent(eventName, data) {
-  for (const client of sseClients) {
-    try {
-      client.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
-    } catch (e) {
-      sseClients.delete(client);
-    }
-  }
-}
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -70,22 +54,6 @@ function generateRandomKey(prefix = 'PWUP') {
   return `${prefix}-${chunk()}-${chunk()}-${chunk()}`;
 }
 
-function detectServerDevice(ua = '') {
-  let os = 'Unknown OS';
-  let model = 'Unknown Device';
-
-  if (/Windows NT 10.0/i.test(ua)) {
-    os = 'Windows 10/11 64-bit';
-    model = 'Windows PC';
-  } else if (/Android/i.test(ua)) {
-    const v = ua.match(/Android (\d+(\.\d+)?)/);
-    os = v ? `Android ${v[1]}` : 'Android';
-    model = 'Android Device';
-  }
-
-  return { os, model };
-}
-
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
@@ -101,12 +69,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 1. Check Maintenance Status
-  if (pathname === '/api/maintenance' && req.method === 'GET') {
-    return sendJson(res, 200, db.getMaintenance());
-  }
-
-  // 2. Client Key Authentication / Redeem
+  // 1. Redeem API
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -116,12 +79,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { error: 'enter your full key' });
     }
 
-    const ua = req.headers['user-agent'] || '';
-    const serverDev = detectServerDevice(ua);
-    const clientHwid = (body.hwid || '').trim() || `PWUP-${crypto.createHash('md5').update(ua + (req.socket.remoteAddress || '')).digest('hex').slice(0, 8).toUpperCase()}`;
-    const clientDeviceModel = (body.device_model || '').trim() || serverDev.model;
-    const clientDeviceOs = (body.device_os || '').trim() || serverDev.os;
-
+    const clientHwid = (body.hwid || '').trim() || 'PWUP-J74D-ZFRQ';
     let keyRecord = db.findKey(key);
 
     if (!keyRecord) {
@@ -129,8 +87,8 @@ const server = http.createServer(async (req, res) => {
         key: key.startsWith('PWUP') ? key : `PWUP-${key}`,
         status: 'active',
         bound_hwid: clientHwid,
-        device_model: clientDeviceModel,
-        device_os: clientDeviceOs,
+        device_model: body.device_model || 'Android Device',
+        device_os: body.device_os || 'Android',
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 3650 * 24 * 3600 * 1000).toISOString(),
         features: db.get().global_features
@@ -138,55 +96,38 @@ const server = http.createServer(async (req, res) => {
       db.addKey(keyRecord);
     }
 
-    if (keyRecord.status === 'revoked') {
-      return sendJson(res, 400, { error: 'this license key has been revoked' });
-    }
-
-    if (new Date(keyRecord.expires_at).getTime() < Date.now()) {
-      return sendJson(res, 400, { error: 'this license key has expired' });
+    if (keyRecord.bound_hwid && keyRecord.bound_hwid !== clientHwid) {
+      return sendJson(res, 403, { error: 'This key is locked to another phone.' });
     }
 
     if (!keyRecord.bound_hwid) {
-      db.updateKey(key, { bound_hwid: clientHwid, device_model: clientDeviceModel, device_os: clientDeviceOs });
-    } else {
-      if (keyRecord.bound_hwid !== clientHwid) {
-        return sendJson(res, 403, { 
-          error: 'This key is locked to another phone. Reset the device on the site (once every 7 days), then refresh here.' 
-        });
-      }
+      db.updateKey(key, { bound_hwid: clientHwid });
     }
 
     return sendJson(res, 200, {
       ok: true,
       me: {
         status: 'active',
-        bound_hwid: keyRecord.bound_hwid,
-        device_model: keyRecord.device_model,
-        device_os: keyRecord.device_os,
+        bound_hwid: keyRecord.bound_hwid || clientHwid,
         expires_at: keyRecord.expires_at,
         features: keyRecord.features || db.get().global_features
       }
     });
   }
 
-  // 3. Features GET and PATCH
-  if (pathname === '/api/features') {
-    if (req.method === 'GET') {
-      return sendJson(res, 200, { features: db.get().global_features });
+  // 2. Features API
+  if (pathname === '/api/features' && req.method === 'PATCH') {
+    const body = await parseJsonBody(req);
+    if (body.features) {
+      db.update(data => {
+        data.global_features = { ...data.global_features, ...body.features };
+      });
+      interceptor.setFeatures(db.get().global_features);
     }
-    if (req.method === 'PATCH') {
-      const body = await parseJsonBody(req);
-      if (body.features) {
-        db.update(data => {
-          data.global_features = { ...data.global_features, ...body.features };
-        });
-        interceptor.setFeatures(db.get().global_features);
-      }
-      return sendJson(res, 200, { ok: true, features: db.get().global_features });
-    }
+    return sendJson(res, 200, { ok: true, features: db.get().global_features });
   }
 
-  // 4. Happ Tunnel Config Generation
+  // 3. Happ VPN API
   if (pathname === '/api/happ') {
     const key = searchParams.get('key') || 'PWUP-J74D-ZFRQ';
     const hostDomain = req.headers.host || 'localhost';
@@ -216,8 +157,8 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // 5. Reset / Unbind HWID
-  if ((pathname === '/api/unbind-hwid' || pathname === '/api/reset-hwid') && req.method === 'POST') {
+  // 4. Unbind HWID
+  if (pathname === '/api/unbind-hwid' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     if (body.key) {
       db.updateKey(body.key, { bound_hwid: null, device_model: null, device_os: null });
@@ -226,7 +167,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // 6. Admin Panel API Endpoints
+  // 5. Admin Panel APIs (تم تصحيح ودعم مسارات توليد المفاتيح هنا)[span_1](start_span)[span_1](end_span)
   if (pathname === '/api/admin/overview' || pathname === '/api/admin/stats') {
     const data = db.get();
     return sendJson(res, 200, {
@@ -243,18 +184,31 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { keys: data.keys || [] });
   }
 
-  if (pathname === '/api/admin/keys' && req.method === 'POST') {
+  // دعم مساري توليد المفاتيح لكي يعمل زر Generate في أي بانل بدون مشاكل[span_2](start_span)[span_2](end_span)
+  if ((pathname === '/api/admin/keys' || pathname === '/api/admin/keys/generate') && req.method === 'POST') {
     const body = await parseJsonBody(req);
-    const newKey = {
-      key: body.key || generateRandomKey('PWUP'),
-      status: 'active',
-      bound_hwid: null,
-      created_at: new Date().toISOString(),
-      expires_at: body.expires_at || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
-      features: db.get().global_features
-    };
-    db.addKey(newKey);
-    return sendJson(res, 200, { ok: true, key: newKey });
+    const count = Math.min(Math.max(parseInt(body.count, 10) || 1, 1), 50);
+    const durationDays = parseInt(body.days, 10) || 30;
+    const note = body.note || 'Generated from Admin Panel';
+    const prefix = (body.prefix || 'PWUP').trim().toUpperCase();
+
+    const createdKeys = [];
+    for (let i = 0; i < count; i++) {
+      const newKeyStr = generateRandomKey(prefix);
+      const newKeyObj = {
+        key: newKeyStr,
+        status: 'active',
+        bound_hwid: null,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString(),
+        note: note,
+        features: db.get().global_features
+      };
+      db.addKey(newKeyObj);
+      createdKeys.push(newKeyObj);
+    }
+
+    return sendJson(res, 200, { ok: true, keys: createdKeys, key: createdKeys[0] });
   }
 
   const deleteKeyMatch = pathname.match(/^\/api\/admin\/keys\/([^/]+)$/);
@@ -264,14 +218,11 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true });
   }
 
-  // ==========================================
-  // STATIC ASSET & PAGE ROUTING (مع توجيه الأدمن بدقة)
-  // ==========================================
+  // 6. Static Routing & Admin Panel Files[span_3](start_span)[span_3](end_span)
   let filePath;
   if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
   } else if (pathname === '/admin' || pathname === '/admin.html' || pathname === '/Control-panel-xyz987.html') {
-    // التحقق من مكان ملف الأدمن سواء في الجذر أو داخل public
     const p1 = path.join(ROOT_DIR, 'Control-panel-xyz987.html');
     const p2 = path.join(ROOT_DIR, 'public', 'Control-panel-xyz987.html');
     filePath = fs.existsSync(p1) ? p1 : p2;
