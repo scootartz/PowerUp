@@ -12,6 +12,7 @@ gameTunnel.start();
 // Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
+// ربط البورت بمتغير البيئة الخاص بـ Railway لتجنب إغلاق الحاوية
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
 
@@ -81,7 +82,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 1. Client Key Authentication / Redeem & HWID Binding Logic
+  // 1. Client Key Authentication / Redeem & HWID Binding
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -111,7 +112,6 @@ const server = http.createServer(async (req, res) => {
       db.addKey(keyRecord);
     }
 
-    // التحقق من توافق HWID مع رسالة الخطأ الخاصة بقفل الجهاز
     if (keyRecord.bound_hwid && keyRecord.bound_hwid !== clientHwid) {
       return sendJson(res, 403, { 
         error: 'This key is locked to another phone. Reset the device on the site (once every 7 days), then refresh here.' 
@@ -133,7 +133,7 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // 2. Features PATCH
+  // 2. Features Update
   if (pathname === '/api/features' && req.method === 'PATCH') {
     const body = await parseJsonBody(req);
     if (body.features) {
@@ -145,7 +145,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true, features: db.get().global_features });
   }
 
-  // 3. Happ Tunnel Config Generation (مع استثناء نطاق الموقع لمنع تعطله)
+  // 3. Happ Tunnel Config
   if (pathname === '/api/happ') {
     const key = searchParams.get('key') || 'PWUP-J74D-ZFRQ';
     const hostDomain = req.headers.host || 'localhost';
@@ -161,7 +161,7 @@ const server = http.createServer(async (req, res) => {
       active_features: db.get().global_features,
       routing: {
         rules: [
-          { domain_suffix: [hostDomain, 'railway.app', 'localhost'], outbound: 'direct' },
+          { domain_suffix: [hostDomain, 'railway.app', 'railway.com', 'localhost'], outbound: 'direct' },
           { domain_suffix: ['freefiremobile.com', 'garena.com'], outbound: 'powerup-tunnel' }
         ]
       }
@@ -175,7 +175,7 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // 4. Reset / Unbind HWID
+  // 4. Reset HWID Unbind
   if (pathname === '/api/unbind-hwid' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     if (body.key) {
@@ -185,7 +185,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // 5. Admin Panel API Endpoints (لضمان عمل صفحة الأدمن بالكامل)
+  // 5. Admin Panel API Endpoints
   if (pathname.startsWith('/api/admin/')) {
     const currentDb = db.get();
     
@@ -223,13 +223,13 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Static Files Routing (index.html, admin panel files, etc.)
+  // Static Files Routing (مع التوجيه الصحيح لملف الأدمن Control-panel-xyz987.html)
   let filePath;
   if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
-  } else if (pathname === '/admin' || pathname === '/admin.html') {
-    filePath = path.join(ROOT_DIR, 'admin.html');
-  } else if (pathname.startsWith('/src/') || pathname.startsWith('/admin')) {
+  } else if (pathname === '/admin' || pathname === '/Control-panel-xyz987.html') {
+    filePath = path.join(ROOT_DIR, 'Control-panel-xyz987.html');
+  } else if (pathname.startsWith('/src/')) {
     filePath = path.join(ROOT_DIR, pathname);
   } else {
     filePath = path.join(ROOT_DIR, 'index.html');
