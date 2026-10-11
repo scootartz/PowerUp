@@ -6,10 +6,7 @@ const db = require('./data/db');
 const interceptor = require('./src/engine/packet_interceptor');
 const gameTunnel = require('./src/engine/game_tunnel');
 
-// Start active UDP game tunnel
 gameTunnel.start();
-
-// Initialize interceptor with saved features
 interceptor.setFeatures(db.get().global_features);
 
 const PORT = process.env.PORT || 3000;
@@ -51,21 +48,6 @@ function parseJsonBody(req) {
   });
 }
 
-function detectServerDevice(ua = '') {
-  let os = 'Unknown OS';
-  let model = 'Unknown Device';
-
-  if (/Windows NT 10.0/i.test(ua)) {
-    os = 'Windows 10/11 64-bit';
-    model = 'Windows PC';
-  } else if (/Android/i.test(ua)) {
-    os = 'Android';
-    model = 'Android Device';
-  }
-
-  return { os, model };
-}
-
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
@@ -81,7 +63,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Client Key Authentication / Redeem & HWID Binding Logic
   if (pathname === '/api/redeem' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     const rawKey = (body.key || '').trim();
@@ -91,19 +72,16 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { error: 'enter your full key' });
     }
 
-    const ua = req.headers['user-agent'] || '';
-    const serverDev = detectServerDevice(ua);
-    const clientHwid = (body.hwid || '').trim() || 'AMHK-80E1-9AB2-12A8';
-
+    const clientHwid = (body.hwid || '').trim() || 'PWUP-J74D-ZFRQ';
     let keyRecord = db.findKey(key);
 
     if (!keyRecord) {
       keyRecord = {
-        key: key.startsWith('AMHK') ? key : `AMHK-${key}`,
+        key: key.startsWith('PWUP') ? key : `PWUP-${key}`,
         status: 'active',
         bound_hwid: clientHwid,
-        device_model: body.device_model || serverDev.model,
-        device_os: body.device_os || serverDev.os,
+        device_model: body.device_model || 'Android Device',
+        device_os: body.device_os || 'Android',
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 3650 * 24 * 3600 * 1000).toISOString(),
         features: db.get().global_features
@@ -111,7 +89,6 @@ const server = http.createServer(async (req, res) => {
       db.addKey(keyRecord);
     }
 
-    // التحقق من توافق HWID وإعطاء رسالة الخطأ المطابقة لـ AimHack
     if (keyRecord.bound_hwid && keyRecord.bound_hwid !== clientHwid) {
       return sendJson(res, 403, { 
         error: 'This key is locked to another phone. Reset the device on the site (once every 7 days), then refresh here.' 
@@ -133,7 +110,6 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // Features PATCH
   if (pathname === '/api/features' && req.method === 'PATCH') {
     const body = await parseJsonBody(req);
     if (body.features) {
@@ -145,23 +121,22 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { ok: true, features: db.get().global_features });
   }
 
-  // Happ Tunnel Config Generation (مع استثناء نطاق الموقع لمنع توقفه وتوجيه فري فاير للـ VPN)
   if (pathname === '/api/happ') {
-    const key = searchParams.get('key') || 'AMHK-80E1-9AB2-12A8';
+    const key = searchParams.get('key') || 'PWUP-J74D-ZFRQ';
     const hostDomain = req.headers.host || 'localhost';
 
     const configData = {
       version: '1.7',
-      client: 'AIMHACK',
+      client: 'POWER UP',
       key: key,
       created_at: new Date().toISOString(),
       nodes: [
-        { name: 'AIMHACK-VIP', address: hostDomain.split(':')[0], port: 443, ping: '24ms', status: 'online' }
+        { name: 'POWERUP-VIP', address: hostDomain.split(':')[0], port: 443, ping: '24ms', status: 'online' }
       ],
       active_features: db.get().global_features,
       routing: {
         rules: [
-          { domain_suffix: [hostDomain, 'railway.app', 'localhost'], outbound: 'direct' },
+          { domain_suffix: [hostDomain, 'railway.app', 'railway.com', 'localhost'], outbound: 'direct' },
           { domain_suffix: ['freefiremobile.com', 'garena.com'], outbound: 'powerup-tunnel' }
         ]
       }
@@ -175,7 +150,6 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  // Reset / Unbind HWID
   if (pathname === '/api/unbind-hwid' && req.method === 'POST') {
     const body = await parseJsonBody(req);
     if (body.key) {
@@ -185,10 +159,48 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { error: 'key required' });
   }
 
-  // Static Files Routing
+  if (pathname.startsWith('/api/admin/')) {
+    const currentDb = db.get();
+    
+    if (pathname === '/api/admin/stats' && req.method === 'GET') {
+      return sendJson(res, 200, {
+        total_keys: currentDb.keys ? currentDb.keys.length : 0,
+        active_tunnels: 1
+      });
+    }
+
+    if (pathname === '/api/admin/keys' && req.method === 'GET') {
+      return sendJson(res, 200, { keys: currentDb.keys || [] });
+    }
+
+    if (pathname === '/api/admin/keys' && req.method === 'POST') {
+      const body = await parseJsonBody(req);
+      const newKey = {
+        key: body.key || `PWUP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+        status: 'active',
+        bound_hwid: null,
+        created_at: new Date().toISOString(),
+        expires_at: body.expires_at || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+        features: db.get().global_features
+      };
+      db.addKey(newKey);
+      return sendJson(res, 200, { ok: true, key: newKey });
+    }
+
+    if (pathname.startsWith('/api/admin/keys/') && req.method === 'DELETE') {
+      const keyToDelete = pathname.split('/').pop();
+      db.update(data => {
+        data.keys = (data.keys || []).filter(k => k.key !== keyToDelete);
+      });
+      return sendJson(res, 200, { ok: true });
+    }
+  }
+
   let filePath;
   if (pathname === '/' || pathname === '/index.html') {
     filePath = path.join(ROOT_DIR, 'index.html');
+  } else if (pathname === '/admin' || pathname === '/Control-panel-xyz987.html') {
+    filePath = path.join(ROOT_DIR, 'Control-panel-xyz987.html');
   } else if (pathname.startsWith('/src/')) {
     filePath = path.join(ROOT_DIR, pathname);
   } else {
