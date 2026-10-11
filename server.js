@@ -72,7 +72,7 @@ function generateRandomKey(prefix = 'PHTM') {
 
 function detectServerDevice(ua = '') {
   let os = 'Unknown OS';
-  let model = 'Unknown Device';
+  let model = '23049PCD8G';
 
   if (/Windows NT 10.0/i.test(ua)) {
     os = 'Windows 10/11 64-bit';
@@ -80,16 +80,12 @@ function detectServerDevice(ua = '') {
   } else if (/iPhone/i.test(ua)) {
     const v = ua.match(/OS (\d+[_\.]\d+)/);
     os = v ? `iOS ${v[1].replace('_', '.')}` : 'iOS';
-    model = `iPhone (${os})`;
-  } else if (/iPad/i.test(ua)) {
-    const v = ua.match(/OS (\d+[_\.]\d+)/);
-    os = v ? `iPadOS ${v[1].replace('_', '.')}` : 'iPadOS';
-    model = `iPad (${os})`;
+    model = `iPhone`;
   } else if (/Android/i.test(ua)) {
     const v = ua.match(/Android (\d+(\.\d+)?)/);
     os = v ? `Android ${v[1]}` : 'Android';
     const m = ua.match(/;\s*([A-Za-z0-9\-\s\_]+)\s+Build\//);
-    model = m ? `${m[1].trim()} (${os})` : `Android Device (${os})`;
+    model = m ? m[1].trim() : '23049PCD8G';
   }
 
   return { os, model };
@@ -122,7 +118,7 @@ const server = http.createServer(async (req, res) => {
 
     const ua = req.headers['user-agent'] || '';
     const serverDev = detectServerDevice(ua);
-    const clientHwid = (body.hwid || '').trim() || `PHTM-${crypto.createHash('md5').update(ua + (req.socket.remoteAddress || '')).digest('hex').slice(0, 8).toUpperCase()}`;
+    const clientHwid = (body.hwid || '').trim() || '4231E308EED0D44B';
     const clientDeviceModel = (body.device_model || '').trim() || serverDev.model;
     const clientDeviceOs = (body.device_os || '').trim() || serverDev.os;
 
@@ -130,7 +126,7 @@ const server = http.createServer(async (req, res) => {
 
     if (!keyRecord) {
       keyRecord = {
-        key: key.startsWith('PHTM') ? key : `PHTM-${key.padEnd(4, 'X').slice(0, 4)}-CRACKED-KEY`,
+        key: key.startsWith('PHTM') ? key : `PHTM-${key.padEnd(4, 'X').slice(0, 4)}-VIP`,
         status: 'active',
         bound_hwid: clientHwid,
         device_model: clientDeviceModel,
@@ -177,10 +173,12 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Happ Tunnel Config Generation & Subscription Endpoint
+  // Happ Tunnel Config Generation & Subscription Endpoint (مربوط بتوجيه Free Fire للـ VPN)
   if (pathname === '/api/happ') {
-    const key = searchParams.get('key') || 'PHTM-POWERUP-KEY';
-    const nodes = db.get().nodes;
+    const key = searchParams.get('key') || 'AIMHACK-A212';
+    const nodes = db.get().nodes || [
+      { name: 'AimHack-A212', host: 'proxy.powerup.app', port: 443, ping: '24', status: 'online', flag: '🌐' }
+    ];
 
     const configData = {
       version: '1.7',
