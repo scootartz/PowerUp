@@ -33,15 +33,17 @@ if (savedSession) {
   } catch (e) {}
 }
 
+// دقة العداد بالأيام والساعات تماماً مثل الصورة المطلوبة
 function formatCountdown(targetIso) {
-  if (!targetIso) return '2h 38m';
+  if (!targetIso) return '87599H 56M'; // تطابق الشكل الافتراضي بالصورة أو عداد الأيام
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
-  const hours = Math.floor(sec / 3600);
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  if (days > 0) return `${days}D ${hours}H`;
   const mins = Math.floor((sec % 3600) / 60);
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  return `${hours}H ${mins}M`;
 }
 
 function renderDashboard() {
@@ -51,7 +53,7 @@ function renderDashboard() {
   const isRtl = state.lang === 'ar';
   document.documentElement.setAttribute('lang', state.lang);
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
-  document.title = 'AIMHACK — Client Portal';
+  document.title = 'POWER UP — Client Portal';
 
   const statusColor = state.isConnected ? '#10b981' : '#e50914';
   const statusText = state.isConnected ? 'CONNECTED' : 'OFFLINE';
@@ -89,14 +91,14 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center;">
-      <img src="logo.png" alt="AIMHACK" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 10px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
+      <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" />
 
-      <!-- خانة المفتاح المضبوطة تماماً مثل الصورة المطلوبة (دائرية الأطراف وبشكل متناسق في المنتصف) -->
-      <div style="width: 100%; max-width: 310px; background: #0a0a0a; border: 1px solid #222222; border-radius: 30px; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 0 auto;">
-        <span style="font-size: 11.5px; font-weight: 700; letter-spacing: 1.5px; color: #cccccc; margin: 0 auto;">${state.auth.key || 'AMHK-80E1-9AB2-12A8'}</span>
-        <button id="copy-key-btn" style="background: transparent; border: none; color: #888888; cursor: pointer; display: flex; align-items: center; padding-left: 8px;">
-          ${Icons.copy(15)}
+      <!-- خانة المفتاح في المنتصف تماماً -->
+      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
+        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-J74D-ZFRQ-XNBJ'}</span>
+        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
+          ${Icons.copy(16)}
         </button>
       </div>
 
@@ -106,8 +108,8 @@ function renderStatusTab(me) {
         </button>
       </div>
 
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #777777; margin-top: -6px;">
-        EXPIRES IN <span style="color: #cccccc; font-weight: 700;">${expiresText}</span>
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
+        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
       </p>
     </div>
   `;
@@ -162,26 +164,6 @@ function renderFeaturesTab(me) {
           </button>
         </div>
         <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
-      </div>
-
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
-          <button type="button" data-toggle="gloo" style="width: 44px; height: 24px; border-radius: 12px; background: ${gloo.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
-      </div>
-
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
-          <button type="button" data-toggle="fastRevive" style="width: 44px; height: 24px; border-radius: 12px; background: ${fastRevive.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
       </div>
     </div>
   `;
@@ -269,23 +251,24 @@ function attachDashboardEvents() {
 
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
-    happBtn.addEventListener('click', () => {
+    happBtn.addEventListener('click', async () => {
       state.isConnected = true;
       localStorage.setItem('powerup_vpn_connected', 'true');
 
-      const configObj = {
-        version: "1.7",
-        client: "POWER UP",
-        key: state.auth.key,
-        routing: {
-          rules: [{ domain_suffix: ["freefiremobile.com", "garena.com"], outbound: "powerup-tunnel" }]
+      try {
+        const res = await fetch(`/api/happ?key=${encodeURIComponent(state.auth.key)}`);
+        const data = await res.json();
+        if (data.deepLink) {
+          window.location.href = data.deepLink;
+        } else {
+          const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+          window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
         }
-      };
+      } catch (e) {
+        const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
+        window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
+      }
 
-      const encodedData = btoa(JSON.stringify(configObj));
-      const deepLink = `happ://import?data=${encodeURIComponent(encodedData)}`;
-      
-      window.location.href = deepLink;
       renderDashboard();
     });
   }
@@ -306,8 +289,6 @@ function attachDashboardEvents() {
       if (field === 'marker') f.marker = { ...f.marker, enabled: !f.marker?.enabled };
       else if (field === 'aimpoint') f.aimpoint = { ...f.aimpoint, enabled: !f.aimpoint?.enabled };
       else if (field === 'aimLag') f.aimLag = { ...f.aimLag, enabled: !f.aimLag?.enabled };
-      else if (field === 'gloo') f.gloo = { ...f.gloo, enabled: !f.gloo?.enabled };
-      else if (field === 'fastRevive') f.fastRevive = { ...f.fastRevive, enabled: !f.fastRevive?.enabled };
       
       renderDashboard();
       saveFeatures(f);
@@ -355,9 +336,29 @@ function logout() {
   location.reload();
 }
 
+// تفعيل زر Paste وزر Unlock في شاشة تسجيل الدخول
 document.addEventListener('DOMContentLoaded', () => {
+  setupLoginEvents();
+  if (state.auth.loggedIn) {
+    renderDashboard();
+  }
+});
+
+function setupLoginEvents() {
   const keyInput = document.getElementById('access-key-input');
   const unlockBtn = document.getElementById('unlock-btn');
+  const pasteBtn = document.getElementById('paste-btn');
+
+  if (pasteBtn && keyInput) {
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        keyInput.value = formatKey(text);
+      } catch (e) {
+        alert('Paste failed or permission denied');
+      }
+    });
+  }
 
   if (keyInput) {
     keyInput.addEventListener('input', (e) => {
@@ -403,14 +404,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
-  if (state.auth.loggedIn) {
-    renderDashboard();
-  }
-});
+}
 
 function formatKey(val) {
-  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g) ?? []).join('-');
+  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 19).match(/.{1,4}/g) ?? []).join('-');
 }
 
 async function getRealClientDevice() {
@@ -426,7 +423,7 @@ async function getRealClientDevice() {
   }
   let hwid = localStorage.getItem('powerup_hwid');
   if (!hwid) {
-    hwid = `AMHK-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
     localStorage.setItem('powerup_hwid', hwid);
   }
   return { hwid, device_model: deviceName, device_os: os };
