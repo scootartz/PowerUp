@@ -4,8 +4,8 @@ import { Icons } from './icons.js';
 
 const state = {
   lang: localStorage.getItem('powerup_lang') || 'en',
+  isLangOpen: false,
   tab: 'status',
-  isConnected: localStorage.getItem('powerup_vpn_connected') === 'true',
   auth: {
     loggedIn: false,
     key: '',
@@ -17,7 +17,11 @@ const state = {
       expires_at: null,
       features: JSON.parse(JSON.stringify(CONFIG.DEFAULT_FEATURES))
     }
-  }
+  },
+  keyInput: '',
+  loading: false,
+  error: null,
+  maintenance: { enabled: false, blocked: false, title: 'maintenance', message: '' }
 };
 
 const savedSession = localStorage.getItem('powerup_session');
@@ -33,8 +37,14 @@ if (savedSession) {
   } catch (e) {}
 }
 
+function t(key) {
+  const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
+  return dict[key] || TRANSLATIONS.en[key] || key;
+}
+
+// دالة العداد بالأيام والساعات تماماً كما طلبتها
 function formatCountdown(targetIso) {
-  if (!targetIso) return '87594H 33M';
+  if (!targetIso) return '3649D 18H';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
@@ -45,7 +55,24 @@ function formatCountdown(targetIso) {
   return `${hours}H ${mins}M`;
 }
 
-function renderDashboard() {
+async function getRealClientDevice() {
+  const ua = navigator.userAgent || '';
+  let os = 'Android';
+  let deviceName = 'Android Device';
+  if (/Windows/i.test(ua)) { os = 'Windows'; deviceName = 'Windows PC'; }
+  let hwid = localStorage.getItem('powerup_hwid');
+  if (!hwid) {
+    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    localStorage.setItem('powerup_hwid', hwid);
+  }
+  return { hwid, device_model: deviceName, device_os: os };
+}
+
+function formatKey(val) {
+  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 19).match(/.{1,4}/g) ?? []).join('-');
+}
+
+function render() {
   const root = document.getElementById('app');
   if (!root) return;
 
@@ -54,200 +81,188 @@ function renderDashboard() {
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.title = 'POWER UP — Client Portal';
 
-  const statusColor = state.isConnected ? '#10b981' : '#e50914';
-  const statusText = state.isConnected ? 'CONNECTED' : 'OFFLINE';
-
-  root.innerHTML = `
-    <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
-      
-      <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: ${statusColor};">
-          <span style="height: 8px; width: 8px; border-radius: 50%; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
-          ${statusText}
-        </div>
-        
-        <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);" title="Change Language">
-          ${Icons.languages(20)}
-        </button>
-      </div>
-
-      <div style="width: 100%; max-width: 400px; margin: auto 0; display: flex; flex-direction: column; align-items: center;">
-        ${state.tab === 'status' ? renderStatusTab(state.auth.me) : ''}
-        ${state.tab === 'features' ? renderFeaturesTab(state.auth.me) : ''}
-        ${state.tab === 'manage' ? renderManageTab() : ''}
-      </div>
-
-      ${renderBottomNav()}
-    </div>
-  `;
-  attachDashboardEvents();
+  let html = '';
+  if (!state.auth.loggedIn) {
+    html = renderKeyGate();
+  } else {
+    html = renderDashboard();
+  }
+  root.innerHTML = html;
+  attachEvents();
 }
 
-function renderStatusTab(me) {
+function renderKeyGate() {
+  return `
+    <main class="relative flex min-h-dvh flex-col items-center justify-center px-6 w-full">
+      <div class="card flex w-full max-w-xs flex-col items-center gap-5 p-7 border-[#1f1f1f] bg-[#09090b] shadow-[0_20px_40px_rgba(0,0,0,0.8)] rounded-[28px]">
+        
+        <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" />
+
+        <p class="text-[11.5px] text-center text-[#71717a] tracking-[0.5px]">No account, no password. Your key only.</p>
+        
+        <form id="key-form" class="flex w-full flex-col gap-3">
+          <span class="text-[11px] font-bold text-[#a1a1aa] uppercase tracking-[1.5px] text-left">Access Key</span>
+          <div class="flex items-center bg-[#050505] border border-[#27272a] rounded-[16px] p-1">
+            <button type="button" id="paste-btn" class="bg-[#18181b] text-[#d4d4d8] border-none rounded-[12px] px-3 py-2.5 text-[11px] font-bold cursor-pointer">Paste</button>
+            <input 
+              id="key-input"
+              type="text"
+              placeholder="PWUP-XXXX-XXXX-XXXX" 
+              spellcheck="false" 
+              autocomplete="off" 
+              autofocus 
+              class="w-full bg-transparent border-none text-white text-center text-[11.5px] font-semibold tracking-[1.5px] outline-none" 
+              value="${state.keyInput}"
+              maxlength="19"
+            />
+          </div>
+          
+          ${state.error ? `<p class="text-center text-xs text-[#e50914]">${state.error}</p>` : ''}
+          
+          <button type="submit" class="w-full bg-[#e50914] text-white font-extrabold uppercase tracking-[2px] py-4 rounded-[16px] text-[13px] cursor-pointer shadow-[0_8px_24px_rgba(229,9,20,0.3)] mt-2" ${state.loading ? 'disabled' : ''}>
+            ${state.loading ? 'Authenticating...' : 'Unlock'}
+          </button>
+        </form>
+      </div>
+      
+      <p class="mt-6 text-center text-[10.5px] text-[#52525b] leading-relaxed">No key? Contact your seller.<br/>Time starts upon connection.</p>
+    </main>
+  `;
+}
+
+function renderDashboard() {
+  const me = state.auth.me;
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" />
-
-      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-WKZF-LMXY-EH3Y'}</span>
-        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
-          ${Icons.copy(16)}
-        </button>
-      </div>
-
-      <div style="width: 100%; max-width: 320px;">
-        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
-          ADD SUBSCRIPTION
-        </button>
-      </div>
-
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
-        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
-      </p>
-    </div>
-  `;
-}
-
-function renderFeaturesTab(me) {
-  const f = me.features || {};
-  const marker = f.marker || { enabled: true, type: 'Phantom' };
-  const aimpoint = f.aimpoint || { enabled: true };
-  const aimLag = f.aimLag || { enabled: false };
-
-  const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
-  const isMarkerDisabled = !marker.enabled;
-
-  return `
-    <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">FEATURES</div>
-
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">MARKER TYPE</span>
-          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
+    <main class="relative mx-auto flex min-h-dvh max-w-md flex-col px-5 pb-32 pt-6 w-full items-center">
+      
+      <div class="flex w-full items-center justify-between px-1 py-4">
+        <div class="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[2px] text-[#10b981]">
+          <span class="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]"></span>
+          CONNECTED
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
         
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: ${isMarkerDisabled ? '0.35' : '1'}; pointer-events: ${isMarkerDisabled ? 'none' : 'auto'}; transition: opacity 0.2s;">
-          ${markerTypes.map(type => `
-            <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
-          `).join('')}
-        </div>
+        <button id="lang-btn" class="flex h-10 w-10 items-center justify-center rounded-full bg-[#0a0a0a] border border-[#1f1f1f] text-[#ccc]">
+          ${Icons.languages(18)}
+        </button>
       </div>
 
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
-          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+      <div class="flex flex-1 flex-col items-center justify-center w-full my-auto text-center gap-5">
+        <img src="logo.png" alt="POWER UP" style="max-width: 210px; width: 100%; height: auto; object-fit: contain; filter: drop-shadow(0 0 20px rgba(229, 9, 20, 0.4));" />
+
+        <div class="w-full max-w-[320px] bg-[#0a0a0a] border border-[#1f1f1f] rounded-[20px] p-3.5 flex justify-between items-center box-sizing">
+          <span class="text-[12px] font-bold tracking-[1.5px] text-[#ddd] mx-auto">${state.auth.key}</span>
+          <button id="copy-key-btn" class="bg-transparent border-none text-[#77] cursor-pointer">${Icons.copy(16)}</button>
+        </div>
+
+        <div class="w-full max-w-[320px]">
+          <button id="happ-btn" class="w-full bg-[#e50914] text-white border-none rounded-[16px] p-4 text-[13px] font-extrabold tracking-[2px] uppercase cursor-pointer shadow-[0_8px_24px_rgba(229,9,20,0.25)]">
+            ADD SUBSCRIPTION
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
+
+        <p class="text-[11px] uppercase tracking-[2px] text-[#666]">
+          EXPIRES IN <span class="text-white font-bold">${expiresText}</span>
+        </p>
       </div>
 
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
-          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
-      </div>
-    </div>
-  `;
-}
-
-function renderManageTab() {
-  const discordUrl = 'https://discord.gg/Km6Hsxk7Y4';
-  const googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.happproxy';
-  const appStoreUrl = 'https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215';
-
-  return `
-    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">MANAGEMENT</div>
-      
-      <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
-        Reset Device Lock (Unbind HWID)
-      </button>
-
-      <a href="${discordUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #5865F2; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Discord Community</span>
-          <span>↗</span>
-        </div>
-      </a>
-
-      <a href="${googlePlayUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #34A853; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Happ VPN (Google Play)</span>
-          <span>↗</span>
-        </div>
-      </a>
-
-      <a href="${appStoreUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-          <span>Happ VPN (App Store)</span>
-          <span>↗</span>
-        </div>
-      </a>
-      
-      <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
-        Log out
-      </button>
-    </div>
+    </main>
+    ${renderBottomNav()}
   `;
 }
 
 function renderBottomNav() {
   const tabs = [
-    { id: 'status', label: state.lang === 'ar' ? 'الرئيسية' : 'HOME', icon: Icons.skull(18) },
-    { id: 'features', label: state.lang === 'ar' ? 'الميزات' : 'FEATURES', icon: Icons.slidersHorizontal(18) },
-    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT', icon: Icons.settings(18) }
+    { id: 'status', label: t('nav_home'), icon: Icons.skull(18) },
+    { id: 'features', label: t('nav_features'), icon: Icons.slidersHorizontal(18) },
+    { id: 'manage', label: t('nav_manage'), icon: Icons.settings(18) }
   ];
 
   return `
-    <div style="position: fixed; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; z-index: 50; pointer-events: none;">
-      <div style="pointer-events: auto; background: rgba(10, 10, 10, 0.95); border: 1px solid #1f1f1f; border-radius: 24px; padding: 6px; display: flex; gap: 6px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+    <nav class="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-3">
+      <div class="pointer-events-auto flex items-stretch gap-1.5 rounded-[24px] bg-[#0a0a0a]/95 border border-[#1f1f1f] p-1.5 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
         ${tabs.map(item => `
-          <button data-nav-tab="${item.id}" style="width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 18px; padding: 10px 0; border: ${state.tab === item.id ? '1px solid #333333' : 'none'}; background: ${state.tab === item.id ? '#1a1a1a' : 'transparent'}; color: ${state.tab === item.id ? '#ffffff' : '#777777'}; cursor: pointer;">
+          <button data-nav-tab="${item.id}" class="flex w-[84px] flex-col items-center justify-center gap-1 rounded-[18px] py-2.5 transition-all ${state.tab === item.id ? 'bg-[#1a1a1a] border border-[#333] text-white font-bold' : 'text-[#777]'}">
             ${item.icon}
-            <span style="font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">${item.label}</span>
+            <span class="text-[9px] uppercase tracking-[1px] font-extrabold">${item.label}</span>
           </button>
         `).join('')}
       </div>
-    </div>
+    </nav>
   `;
 }
 
-function attachDashboardEvents() {
-  const langBtn = document.getElementById('lang-toggle-icon');
-  if (langBtn) {
-    langBtn.addEventListener('click', () => {
-      state.lang = state.lang === 'en' ? 'ar' : 'en';
-      localStorage.setItem('powerup_lang', state.lang);
-      renderDashboard();
+function attachEvents() {
+  const keyInput = document.getElementById('key-input');
+  if (keyInput) {
+    keyInput.addEventListener('input', (e) => {
+      state.keyInput = formatKey(e.target.value);
+      keyInput.value = state.keyInput;
+      state.error = null;
     });
   }
 
-  const copyBtn = document.getElementById('copy-key-btn');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
+  const pasteBtn = document.getElementById('paste-btn');
+  if (pasteBtn && keyInput) {
+    pasteBtn.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          state.keyInput = formatKey(text);
+          keyInput.value = state.keyInput;
+        }
+      } catch (e) {}
+    });
+  }
+
+  const keyForm = document.getElementById('key-form');
+  if (keyForm) {
+    keyForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const val = state.keyInput.trim();
+      if (!val) { state.error = 'Enter your key'; render(); return; }
+
+      state.loading = true;
+      render();
+
+      try {
+        const devInfo = await getRealClientDevice();
+        const res = await fetch('/api/redeem', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: val, hwid: devInfo.hwid, device_model: devInfo.device_model, device_os: devInfo.device_os })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          state.auth.loggedIn = true;
+          state.auth.key = val;
+          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
+          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
+        } else {
+          state.error = data.error || 'Invalid key';
+        }
+      } catch (err) {
+        state.error = 'Network error';
+      } finally {
+        state.loading = false;
+        render();
+      }
+    });
+  }
+
+  const copyKeyBtn = document.getElementById('copy-key-btn');
+  if (copyKeyBtn) {
+    copyKeyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(state.auth.key);
-      alert(state.lang === 'ar' ? 'تم نسخ المفتاح بنجاح' : 'Key copied successfully');
+      alert('Key copied successfully');
     });
   }
 
   const happBtn = document.getElementById('happ-btn');
   if (happBtn) {
     happBtn.addEventListener('click', async () => {
-      state.isConnected = true;
-      localStorage.setItem('powerup_vpn_connected', 'true');
-
       try {
         const res = await fetch(`/api/happ?key=${encodeURIComponent(state.auth.key)}`);
         const data = await res.json();
@@ -261,162 +276,18 @@ function attachDashboardEvents() {
         const subUrl = `https://${window.location.host}/api/happ?key=${encodeURIComponent(state.auth.key)}`;
         window.location.href = `happ://import?data=${encodeURIComponent(btoa(subUrl))}`;
       }
-
-      renderDashboard();
-    });
-  }
-
-  document.querySelectorAll('[data-nav-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.tab = btn.getAttribute('data-nav-tab');
-      renderDashboard();
-    });
-  });
-
-  document.querySelectorAll('[data-toggle]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const field = btn.getAttribute('data-toggle');
-      if (!state.auth.me.features) state.auth.me.features = {};
-      const f = state.auth.me.features;
-      
-      if (field === 'marker') f.marker = { ...f.marker, enabled: !f.marker?.enabled };
-      else if (field === 'aimpoint') f.aimpoint = { ...f.aimpoint, enabled: !f.aimpoint?.enabled };
-      else if (field === 'aimLag') f.aimLag = { ...f.aimLag, enabled: !f.aimLag?.enabled };
-      
-      renderDashboard();
-      saveFeatures(f);
-    });
-  });
-
-  document.querySelectorAll('[data-marker-type]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!state.auth.me.features) state.auth.me.features = {};
-      if (!state.auth.me.features.marker) state.auth.me.features.marker = {};
-      state.auth.me.features.marker.type = btn.getAttribute('data-marker-type');
-      renderDashboard();
-      saveFeatures(state.auth.me.features);
-    });
-  });
-
-  const unbindBtn = document.getElementById('unbind-hwid-btn');
-  if (unbindBtn) {
-    unbindBtn.addEventListener('click', async () => {
-      if (!confirm('Unbind device lock?')) return;
-      await fetch('/api/unbind-hwid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: state.auth.key }) });
-      logout();
     });
   }
 
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', logout);
-  }
-}
-
-async function saveFeatures(f) {
-  localStorage.setItem('powerup_session', JSON.stringify({ key: state.auth.key, me: state.auth.me, features: f }));
-  try {
-    await fetch('/api/features', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features: f, key: state.auth.key }) });
-  } catch (e) {}
-}
-
-function logout() {
-  localStorage.removeItem('powerup_session');
-  localStorage.removeItem('powerup_vpn_connected');
-  state.auth.loggedIn = false;
-  state.isConnected = false;
-  state.auth.key = '';
-  location.reload();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  setupLoginEvents();
-  if (state.auth.loggedIn) {
-    renderDashboard();
-  }
-});
-
-function setupLoginEvents() {
-  const keyInput = document.getElementById('access-key-input');
-  const unlockBtn = document.getElementById('unlock-btn');
-  const pasteBtn = document.getElementById('paste-btn');
-
-  if (pasteBtn && keyInput) {
-    pasteBtn.addEventListener('click', async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        keyInput.value = formatKey(text);
-      } catch (e) {
-        alert('Paste failed or permission denied');
-      }
-    });
-  }
-
-  if (keyInput) {
-    keyInput.addEventListener('input', (e) => {
-      keyInput.value = formatKey(e.target.value);
-    });
-  }
-
-  if (unlockBtn) {
-    unlockBtn.addEventListener('click', async () => {
-      const val = keyInput ? keyInput.value.trim() : '';
-      if (!val) {
-        alert('Please enter your access key');
-        return;
-      }
-
-      unlockBtn.textContent = 'Authenticating...';
-      unlockBtn.disabled = true;
-
-      try {
-        const dev = await getRealClientDevice();
-        const res = await fetch('/api/redeem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: val, hwid: dev.hwid, device_model: dev.device_model, device_os: dev.device_os })
-        });
-        const data = await res.json().catch(() => ({}));
-
-        if (res.ok) {
-          state.auth.loggedIn = true;
-          state.auth.key = val;
-          if (data.me) state.auth.me = { ...state.auth.me, ...data.me };
-          localStorage.setItem('powerup_session', JSON.stringify({ key: val, me: state.auth.me }));
-          renderDashboard();
-        } else {
-          alert(data.error || 'Invalid key');
-          unlockBtn.textContent = 'Unlock';
-          unlockBtn.disabled = false;
-        }
-      } catch (err) {
-        alert('Network error');
-        unlockBtn.textContent = 'Unlock';
-        unlockBtn.disabled = false;
-      }
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('powerup_session');
+      state.auth.loggedIn = false;
+      state.auth.key = '';
+      render();
     });
   }
 }
 
-function formatKey(val) {
-  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 19).match(/.{1,4}/g) ?? []).join('-');
-}
-
-async function getRealClientDevice() {
-  const ua = navigator.userAgent || '';
-  let os = 'Unknown OS';
-  let deviceName = 'Unknown Device';
-  if (/Android/i.test(ua)) {
-    os = 'Android';
-    deviceName = 'Android Device';
-  } else if (/Windows/i.test(ua)) {
-    os = 'Windows';
-    deviceName = 'Windows PC';
-  }
-  let hwid = localStorage.getItem('powerup_hwid');
-  if (!hwid) {
-    hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
-    localStorage.setItem('powerup_hwid', hwid);
-  }
-  return { hwid, device_model: deviceName, device_os: os };
-}
+render();
