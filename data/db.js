@@ -27,7 +27,7 @@ const DEFAULT_DATA = {
   ],
   keys: [
     {
-      key: 'PHTM-TEST-1234-5678',
+      key: 'PWUP-TEST-1234-5678',
       status: 'active',
       bound_hwid: null,
       device_model: null,
