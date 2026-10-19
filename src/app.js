@@ -34,16 +34,16 @@ if (savedSession) {
 }
 
 function formatCountdown(targetIso) {
-  if (!targetIso) return '3649d 18h';
+  if (!targetIso) return '30D 00H';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
   const days = Math.floor(sec / 86400);
   const hours = Math.floor((sec % 86400) / 3600);
   const mins = Math.floor((sec % 3600) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
+  if (days > 0) return `${days}D ${hours}H`;
+  if (hours > 0) return `${hours}H ${mins}M`;
+  return `${mins}M`;
 }
 
 function renderDashboard() {
@@ -55,10 +55,8 @@ function renderDashboard() {
   document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
   document.title = 'POWER UP — Client Portal';
 
-  const statusColor = state.isConnected ? '#10b981' : '#e50914';
-  const statusText = state.isConnected 
-    ? (state.lang === 'ar' ? 'متصل' : 'CONNECTED') 
-    : (state.lang === 'ar' ? 'غير متصل' : 'OFFLINE');
+  const statusColor = state.isConnected ? '#22c55e' : '#71717a';
+  const statusText = state.isConnected ? 'ONLINE' : 'OFFLINE';
 
   root.innerHTML = `
     <div style="background-color: #050505; color: #cacaca; min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px 16px 110px 16px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace, sans-serif;">
@@ -66,12 +64,12 @@ function renderDashboard() {
       <!-- الشريط العلوي للحالة -->
       <div style="width: 100%; max-width: 400px; display: flex; justify-content: space-between; align-items: center; padding: 10px 4px;">
         <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800; letter-spacing: 2px; color: ${statusColor};">
-          <span style="height: 8px; width: 8px; border-radius: 50%; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
+          <span style="height: 8px; width: 8px; background-color: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
           ${statusText}
         </div>
         
-        <button id="lang-toggle-icon" style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 50%; width: 42px; height: 42px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.6);" title="Change Language">
-          ${Icons.languages(20)}
+        <button id="lang-toggle-icon" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 4px; padding: 6px 12px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; font-weight: 700;" title="Change Language">
+          ${state.lang.toUpperCase()}
         </button>
       </div>
 
@@ -93,162 +91,187 @@ function renderStatusTab(me) {
   const expiresText = formatCountdown(me.expires_at);
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;">
-      <img src="logo.png" alt="POWER UP" style="max-width: 200px; width: 100%; height: auto; object-fit: contain; margin: 5px 0; filter: drop-shadow(0 0 15px rgba(229, 9, 20, 0.35));" />
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;">
+      <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #71717a; padding: 0 4px; letter-spacing: 1px;">
+        <span>HOME</span>
+        <span>LAST REFRESHED JUST NOW</span>
+      </div>
 
-      <!-- خانة المفتاح في المنتصف تماماً -->
-      <div style="width: 100%; max-width: 320px; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 20px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; margin: 5px 0;">
-        <span style="font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #dddddd;">${state.auth.key || 'PWUP-WKZF-LMXY-EH3Y'}</span>
-        <button id="copy-key-btn" style="background: transparent; border: none; color: #777777; cursor: pointer; display: flex; align-items: center;">
-          ${Icons.copy(16)}
+      <!-- الدائرة الوسطى بتصميم احترافي -->
+      <div style="position: relative; width: 100%; height: 240px; display: flex; align-items: center; justify-content: center; border: 1px dashed #1a1a1e; border-radius: 20px; background: #0c0c0e; margin: 10px 0;">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <img src="logo.png" alt="POWER UP" style="max-width: 70px; width: 100%; height: auto; object-fit: contain; margin-bottom: 12px; filter: drop-shadow(0 0 12px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
+          <div style="font-family: 'Anton', sans-serif; font-size: 40px; letter-spacing: 2px; color: #ffffff;">${expiresText}</div>
+          <div style="font-size: 9px; color: #71717a; letter-spacing: 3px; margin-top: 4px;">TIME LEFT</div>
+        </div>
+      </div>
+
+      <!-- خانة المفتاح -->
+      <div style="width: 100%; background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 10px; color: #71717a;">KEY</span>
+          <span style="font-size: 12.5px; font-weight: 700; letter-spacing: 1px; color: #ffffff;">${state.auth.key || 'PWUP-XXXX-XXXX-XXXX'}</span>
+        </div>
+        <button id="copy-key-btn" style="background: #18181c; border: none; border-radius: 8px; color: #ffffff; padding: 8px 12px; font-size: 10px; font-weight: 700; cursor: pointer;">COPY</button>
+      </div>
+
+      <!-- زر أضف اشتراك (Add Subscription) -->
+      <div style="width: 100%;">
+        <button id="happ-btn" style="width: 100%; background: #ffffff; color: #000000; border: none; border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+          <div style="text-align: left;">
+            <div style="font-family: 'Anton', sans-serif; font-size: 20px; letter-spacing: 1px;">ADD SUBSCRIPTION</div>
+            <div style="font-size: 10.5px; color: #555555; font-family: 'Inter', sans-serif; font-weight: 600;">opens your vpn app with your key ready</div>
+          </div>
+          <div style="background: #e0e0e0; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; font-size: 18px; font-weight: bold;">+</div>
         </button>
       </div>
 
-      <div style="width: 100%; max-width: 320px;">
-        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 16px; padding: 16px; font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.25);">
-          ADD SUBSCRIPTION
-        </button>
+      <!-- أزرار تحميل Happ VPN (جوجل بلاي وابل ستور) -->
+      <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+        <a href="https://play.google.com/store/apps/details?id=com.happ.proxy" target="_blank" style="width: 100%; background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; color: #22c55e; text-decoration: none; font-size: 11px; font-weight: 700; box-sizing: border-box;">
+          <span>Happ VPN (Google Play)</span>
+          <span>↗</span>
+        </a>
+        <a href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" style="width: 100%; background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; color: #ffffff; text-decoration: none; font-size: 11px; font-weight: 700; box-sizing: border-box;">
+          <span>Happ VPN (App Store)</span>
+          <span>↗</span>
+        </a>
       </div>
-
-      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666666; margin-top: -2px;">
-        EXPIRES IN <span style="color: #ffffff; font-weight: 700;">${expiresText}</span>
-      </p>
     </div>
   `;
 }
 
 function renderFeaturesTab(me) {
   const f = me.features || {};
-  const marker = f.marker || { enabled: true, type: 'Phantom' };
+  const marker = f.marker || { enabled: true, type: 'POWER' };
   const aimpoint = f.aimpoint || { enabled: false };
   const aimLag = f.aimLag || { enabled: false };
-  const gloo = f.gloo || { enabled: false };
-  const fastRevive = f.fastRevive || { enabled: false };
-
-  const markerTypes = ['Phantom', 'Dreamland', 'Ice Wall', 'Moco', 'Clu', 'Shirou', 'Iris', 'Dreki'];
-  const isMarkerDisabled = !marker.enabled;
+  const markerTypes = ['POWER', 'PHANTOM', 'DREAM', 'ICE WALL', 'MOCO', 'CLU', 'SHIROU', 'IRIS'];
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">FEATURES</div>
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 70vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <span style="font-family: 'Anton', sans-serif; font-size: 32px; letter-spacing: 1px; color: #ffffff;">FEATURES</span>
+        <span style="font-family: 'Anton', sans-serif; font-size: 20px; color: #ffffff;">5/5</span>
+      </div>
+      <p style="font-size: 11.5px; color: #71717a; margin-bottom: 10px;">changes apply from your next match</p>
 
-      <!-- Marker Type مع تفعيل/تعطيل الخيارات السفلية بناءً على الزر العلوي -->
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">MARKER TYPE</span>
-          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+      <!-- ميزة Marker -->
+      <div style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 16px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; color: #71717a; font-weight: bold;">01</span>
+            <span style="font-family: 'Anton', sans-serif; font-size: 22px; letter-spacing: 1px; color: #ffffff;">MARKER</span>
+            <span style="background: rgba(229,9,20,0.2); color: #e50914; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">RISK</span>
+          </div>
+          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#ffffff' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${marker.enabled ? '#000000' : '#ffffff'}; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Marks every enemy on your screen. Pick the mark you see.</p>
+        <p style="font-size: 11px; color: #71717a; margin-bottom: 12px;">marks every enemy on your screen.</p>
         
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: ${isMarkerDisabled ? '0.35' : '1'}; pointer-events: ${isMarkerDisabled ? 'none' : 'auto'}; transition: opacity 0.2s;">
+        <div style="font-size: 10px; color: #52525b; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold;">MARK STYLE</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
           ${markerTypes.map(type => `
-            <button data-marker-type="${type}" style="border: none; border-radius: 10px; padding: 6px 12px; font-size: 10.5px; font-weight: 600; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141414'}; color: ${marker.type === type ? '#ffffff' : '#777777'};">${type}</button>
+            <button data-marker-type="${type}" style="border: 1px solid #1a1a1e; border-radius: 8px; padding: 8px 4px; font-size: 10px; font-weight: bold; cursor: pointer; background: ${marker.type === type ? '#ffffff' : '#141418'}; color: ${marker.type === type ? '#000000' : '#71717a'};">${type}</button>
           `).join('')}
         </div>
       </div>
 
-      <!-- Aimpoint -->
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIMPOINT</span>
-          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+      <!-- ميزة Aimpoint -->
+      <div style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 16px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; color: #71717a; font-weight: bold;">02</span>
+            <span style="font-family: 'Anton', sans-serif; font-size: 22px; letter-spacing: 1px; color: #ffffff;">AIMPOINT</span>
+            <span style="background: #222226; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">NEW</span>
+          </div>
+          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#ffffff' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${aimpoint.enabled ? '#000000' : '#ffffff'}; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Moves your aim assist from the chest to the neck, so body shots land as headshots.</p>
+        <p style="font-size: 11px; color: #71717a;">moves your aim from the chest to the neck, so body shots land as headshots.</p>
       </div>
 
-      <!-- Aim Lag -->
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">AIM LAG</span>
-          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+      <!-- ميزة Aim Lag -->
+      <div style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 16px; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; color: #71717a; font-weight: bold;">03</span>
+            <span style="font-family: 'Anton', sans-serif; font-size: 22px; letter-spacing: 1px; color: #ffffff;">AIM LAG</span>
+          </div>
+          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#ffffff' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${aimLag.enabled ? '#000000' : '#ffffff'}; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Freezes the enemy in place for a moment while you fire or scope, so they are easier to hit.</p>
-      </div>
-
-      <!-- Gloo Rotation -->
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">GLOO ROTATION</span>
-          <button type="button" data-toggle="gloo" style="width: 44px; height: 24px; border-radius: 12px; background: ${gloo.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${gloo.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Turns your gloo wall to the angle you set instead of the way you threw it.</p>
-      </div>
-
-      <!-- Fast Revive -->
-      <div style="background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 18px; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a8a8e;">FAST REVIVE</span>
-          <button type="button" data-toggle="fastRevive" style="width: 44px; height: 24px; border-radius: 12px; background: ${fastRevive.enabled ? '#e50914' : '#222222'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${fastRevive.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
-          </button>
-        </div>
-        <p style="font-size: 10.5px; color: #666666; margin-top: 8px; line-height: 1.4;">Picks a knocked teammate up in about 100 ms instead of 3 seconds.</p>
+        <p style="font-size: 11px; color: #71717a;">freezes the enemy for a moment while you fire or scope, so they're easier to hit.</p>
       </div>
     </div>
   `;
 }
 
 function renderManageTab() {
-  const discordUrl = 'https://discord.gg/Km6Hsxk7Y4';
-  const googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.happproxy';
-  const appStoreUrl = 'https://apps.apple.com/sg/app/happ-proxy-utility/id6504287215';
+  const discordUrl = CONFIG.SOCIAL_DISCORD_URL || 'https://discord.gg/Km6Hsxk7Y4';
+  const googlePlayUrl = CONFIG.HAPP_ANDROID_URL || 'https://play.google.com/store/apps/details?id=com.happ.proxy';
+  const appStoreUrl = CONFIG.HAPP_IOS_URL || 'https://apps.apple.com/app/happ-proxy-utility/id6504287215';
 
   return `
-    <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 68vh; overflow-y: auto; padding-right: 4px;">
-      <div style="font-size: 12px; font-weight: 800; letter-spacing: 2px; color: #ffffff; margin-bottom: 4px;">MANAGEMENT</div>
+    <div style="width: 100%; display: flex; flex-direction: column; gap: 14px; text-align: left; max-height: 70vh; overflow-y: auto;">
+      <h1 style="font-family: 'Anton', sans-serif; font-size: 32px; letter-spacing: 1px; color: #ffffff; margin-bottom: 4px;">MANAGE</h1>
       
-      <button id="unbind-hwid-btn" style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer;">
-        Reset Device Lock (Unbind HWID)
-      </button>
+      <!-- Device Lock Card -->
+      <div style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 16px; padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <span style="font-size: 10px; color: #71717a; letter-spacing: 1px;">THIS DEVICE</span>
+          <span style="background: #222226; color: #ffffff; font-size: 9px; font-weight: 700; padding: 4px 8px; border-radius: 4px;">LOCKED TO THIS KEY</span>
+        </div>
+        <div style="font-family: 'Anton', sans-serif; font-size: 32px; color: #ffffff; margin-bottom: 2px;">POWER UP</div>
+        <div style="font-size: 12px; color: #71717a; margin-bottom: 8px;">Android Device</div>
+        <div style="font-size: 10.5px; color: #3f3f46; word-break: break-all; margin-bottom: 16px;">HWID: PWUP-DEV-ACTIVE</div>
 
-      <a href="${discordUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #5865F2; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+        <button id="unbind-hwid-btn" style="width: 100%; background: #141418; border: 1px solid #222228; color: #71717a; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 1px; cursor: pointer; border-radius: 10px;">
+          RESET DEVICE LOCK (UNBIND)
+        </button>
+      </div>
+
+      <!-- Links & Community -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <a href="${discordUrl}" target="_blank" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; color: #5865F2; font-size: 11.5px; font-weight: 700; text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
           <span>Discord Community</span>
           <span>↗</span>
-        </div>
-      </a>
-
-      <a href="${googlePlayUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #34A853; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+        </a>
+        <a href="${googlePlayUrl}" target="_blank" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; color: #22c55e; font-size: 11.5px; font-weight: 700; text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
           <span>Happ VPN (Google Play)</span>
           <span>↗</span>
-        </div>
-      </a>
-
-      <a href="${appStoreUrl}" target="_blank" style="text-decoration: none; width: 100%;">
-        <div style="width: 100%; background: #0a0a0a; border: 1px solid #1f1f1f; border-radius: 16px; padding: 16px; color: #ffffff; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+        </a>
+        <a href="${appStoreUrl}" target="_blank" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; color: #ffffff; font-size: 11.5px; font-weight: 700; text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
           <span>Happ VPN (App Store)</span>
           <span>↗</span>
-        </div>
-      </a>
+        </a>
+      </div>
       
-      <button id="logout-btn" style="width: 100%; background: #0a0a0a; border: 1px solid rgba(229, 9, 20, 0.3); border-radius: 16px; padding: 16px; color: #e50914; font-size: 12px; font-weight: 800; text-align: left; cursor: pointer;">
-        Log out
-      </button>
+      <!-- Logout Button -->
+      <div style="margin-top: 6px;">
+        <button id="logout-btn" style="width: 100%; background: transparent; border: 1px solid #e50914; color: #e50914; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800; cursor: pointer; border-radius: 12px;">
+          LOG OUT SESSION
+        </button>
+      </div>
     </div>
   `;
 }
 
 function renderBottomNav() {
   const tabs = [
-    { id: 'status', label: state.lang === 'ar' ? 'الرئيسية' : 'HOME', icon: Icons.skull(18) },
-    { id: 'features', label: state.lang === 'ar' ? 'الميزات' : 'FEATURES', icon: Icons.slidersHorizontal(18) },
-    { id: 'manage', label: state.lang === 'ar' ? 'الإدارة' : 'MANAGEMENT', icon: Icons.settings(18) }
+    { id: 'status', label: 'HOME', icon: Icons.skull(18) },
+    { id: 'features', label: 'FEATURES', icon: Icons.slidersHorizontal(18) },
+    { id: 'manage', label: 'MANAGE', icon: Icons.settings(18) }
   ];
 
   return `
-    <div style="position: fixed; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; z-index: 50; pointer-events: none;">
-      <div style="pointer-events: auto; background: rgba(10, 10, 10, 0.95); border: 1px solid #1f1f1f; border-radius: 24px; padding: 6px; display: flex; gap: 6px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+    <div style="position: fixed; bottom: 16px; left: 0; right: 0; display: flex; justify-content: center; z-index: 50; pointer-events: none;">
+      <div style="pointer-events: auto; background: rgba(12, 12, 14, 0.95); border: 1px solid #1a1a1e; border-radius: 20px; padding: 6px; display: flex; gap: 6px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
         ${tabs.map(item => `
-          <button data-nav-tab="${item.id}" style="width: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 18px; padding: 10px 0; border: ${state.tab === item.id ? '1px solid #333333' : 'none'}; background: ${state.tab === item.id ? '#1a1a1a' : 'transparent'}; color: ${state.tab === item.id ? '#ffffff' : '#777777'}; cursor: pointer;">
+          <button data-nav-tab="${item.id}" style="width: 86px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 14px; padding: 8px 0; border: none; background: ${state.tab === item.id ? '#ffffff' : 'transparent'}; color: ${state.tab === item.id ? '#000000' : '#71717a'}; cursor: pointer; transition: 0.2s;">
             ${item.icon}
             <span style="font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">${item.label}</span>
           </button>
@@ -272,7 +295,7 @@ function attachDashboardEvents() {
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(state.auth.key);
-      alert(state.lang === 'ar' ? 'تم نسخ المفتاح بنجاح' : 'Key copied successfully');
+      alert('KEY COPIED TO CLIPBOARD');
     });
   }
 
@@ -281,20 +304,7 @@ function attachDashboardEvents() {
     happBtn.addEventListener('click', () => {
       state.isConnected = true;
       localStorage.setItem('powerup_vpn_connected', 'true');
-
-      const configObj = {
-        version: "1.7",
-        client: "POWER UP",
-        key: state.auth.key,
-        routing: {
-          rules: [{ domain_suffix: ["freefiremobile.com", "garena.com"], outbound: "powerup-tunnel" }]
-        }
-      };
-
-      const encodedData = btoa(JSON.stringify(configObj));
-      const deepLink = `happ://import?data=${encodeURIComponent(encodedData)}`;
-      
-      window.location.href = deepLink;
+      window.location.href = 'happ://';
       renderDashboard();
     });
   }
@@ -315,8 +325,6 @@ function attachDashboardEvents() {
       if (field === 'marker') f.marker = { ...f.marker, enabled: !f.marker?.enabled };
       else if (field === 'aimpoint') f.aimpoint = { ...f.aimpoint, enabled: !f.aimpoint?.enabled };
       else if (field === 'aimLag') f.aimLag = { ...f.aimLag, enabled: !f.aimLag?.enabled };
-      else if (field === 'gloo') f.gloo = { ...f.gloo, enabled: !f.gloo?.enabled };
-      else if (field === 'fastRevive') f.fastRevive = { ...f.fastRevive, enabled: !f.fastRevive?.enabled };
       
       renderDashboard();
       saveFeatures(f);
@@ -332,15 +340,6 @@ function attachDashboardEvents() {
       saveFeatures(state.auth.me.features);
     });
   });
-
-  const unbindBtn = document.getElementById('unbind-hwid-btn');
-  if (unbindBtn) {
-    unbindBtn.addEventListener('click', async () => {
-      if (!confirm('Unbind device lock?')) return;
-      await fetch('/api/unbind-hwid', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: state.auth.key }) });
-      logout();
-    });
-  }
 
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
@@ -419,24 +418,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function formatKey(val) {
-  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g) ?? []).join('-');
+  return (val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 19).match(/.{1,4}/g) ?? []).join('-');
 }
 
 async function getRealClientDevice() {
-  const ua = navigator.userAgent || '';
-  let os = 'Unknown OS';
-  let deviceName = 'Unknown Device';
-  if (/Android/i.test(ua)) {
-    os = 'Android';
-    deviceName = 'Android Device';
-  } else if (/Windows/i.test(ua)) {
-    os = 'Windows';
-    deviceName = 'Windows PC';
-  }
   let hwid = localStorage.getItem('powerup_hwid');
   if (!hwid) {
     hwid = `PWUP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
     localStorage.setItem('powerup_hwid', hwid);
   }
-  return { hwid, device_model: deviceName, device_os: os };
+  return { hwid, device_model: 'Android Device', device_os: 'Android' };
 }
