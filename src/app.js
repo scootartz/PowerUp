@@ -115,7 +115,7 @@ function renderStatusTab(me) {
         <button id="copy-key-btn" style="background: #18181c; border: none; border-radius: 8px; color: #ffffff; padding: 8px 12px; font-size: 10px; font-weight: 700; cursor: pointer;">COPY</button>
       </div>
 
-      <!-- زر أضف اشتراك (Add Subscription) فقط بدون روابط VPN خارجية هنا -->
+      <!-- زر أضف اشتراك (Add Subscription) -->
       <div style="width: 100%;">
         <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);">
           <div style="text-align: left;">
@@ -131,10 +131,20 @@ function renderStatusTab(me) {
 
 function renderFeaturesTab(me) {
   const f = me.features || {};
-  const marker = f.marker || { enabled: true, type: 'POWER' };
+  
+  // التأكد من أن POWER هو الخيار الافتراضي دائماً
+  if (!f.marker) {
+    f.marker = { enabled: true, type: 'POWER' };
+  } else if (!f.marker.type || f.marker.type === 'PHANTOM') {
+    f.marker.type = 'POWER';
+  }
+
+  const marker = f.marker;
   const aimpoint = f.aimpoint || { enabled: false };
   const aimLag = f.aimLag || { enabled: false };
-  const markerTypes = ['POWER', 'PHANTOM', 'DREAM', 'ICE WALL', 'MOCO', 'CLU', 'SHIROU', 'IRIS'];
+
+  // إزالة PHANTOM من القائمة
+  const markerTypes = ['POWER', 'DREAM', 'ICE WALL', 'MOCO', 'CLU', 'SHIROU', 'IRIS'];
 
   return `
     <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 70vh; overflow-y: auto;">
@@ -159,9 +169,11 @@ function renderFeaturesTab(me) {
         <p style="font-size: 11px; color: #71717a; margin-bottom: 12px;">marks every enemy on your screen.</p>
         
         <div style="font-size: 10px; color: #52525b; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold;">MARK STYLE</div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+        
+        <!-- شبكة الأشكال مع التأثير الشفاف عند الإيقاف -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; position: relative; transition: all 0.3s ease; ${!marker.enabled ? 'opacity: 0.35; pointer-events: none; filter: grayscale(1);' : ''}">
           ${markerTypes.map(type => `
-            <button data-marker-type="${type}" style="border: 1px solid #1a1a1e; border-radius: 8px; padding: 8px 4px; font-size: 10px; font-weight: bold; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141418'}; color: ${marker.type === type ? '#ffffff' : '#71717a'};">${type}</button>
+            <button data-marker-type="${type}" style="border: 1px solid #1a1a1e; border-radius: 8px; padding: 8px 4px; font-size: 10px; font-weight: bold; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141418'}; color: ${marker.type === type ? '#ffffff' : '#71717a'}; transition: all 0.2s;">${type}</button>
           `).join('')}
         </div>
       </div>
@@ -222,7 +234,7 @@ function renderManageTab() {
         </button>
       </div>
 
-      <!-- روابط Happ VPN والمجتمع تم نقلها هنا حصرياً -->
+      <!-- Links & Community -->
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <a href="${discordUrl}" target="_blank" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; color: #5865F2; font-size: 11.5px; font-weight: 700; text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
           <span>Discord Community</span>
