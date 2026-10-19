@@ -34,7 +34,7 @@ if (savedSession) {
 }
 
 function formatCountdown(targetIso) {
-  if (!targetIso) return '30D 00H';
+  if (!targetIso) return '29D 23H';
   const diff = new Date(targetIso).getTime() - Date.now();
   if (diff <= 0) return 'EXPIRED';
   const sec = Math.floor(diff / 1000);
@@ -68,7 +68,7 @@ function renderDashboard() {
           ${statusText}
         </div>
         
-        <button id="lang-toggle-icon" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 4px; padding: 6px 12px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; font-weight: 700;" title="Change Language">
+        <button id="lang-toggle-icon" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 4px; padding: 6px 12px; color: #cccccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; font-weight: 700;">
           ${state.lang.toUpperCase()}
         </button>
       </div>
@@ -97,7 +97,7 @@ function renderStatusTab(me) {
         <span>LAST REFRESHED JUST NOW</span>
       </div>
 
-      <!-- الدائرة الوسطى بتصميم احترافي -->
+      <!-- الدائرة الوسطى -->
       <div style="position: relative; width: 100%; height: 240px; display: flex; align-items: center; justify-content: center; border: 1px dashed #1a1a1e; border-radius: 20px; background: #0c0c0e; margin: 10px 0;">
         <div style="display: flex; flex-direction: column; align-items: center;">
           <img src="logo.png" alt="POWER UP" style="max-width: 70px; width: 100%; height: auto; object-fit: contain; margin-bottom: 12px; filter: drop-shadow(0 0 12px rgba(229, 9, 20, 0.4));" onerror="this.onerror=null; this.style.display='none';" />
@@ -115,27 +115,15 @@ function renderStatusTab(me) {
         <button id="copy-key-btn" style="background: #18181c; border: none; border-radius: 8px; color: #ffffff; padding: 8px 12px; font-size: 10px; font-weight: 700; cursor: pointer;">COPY</button>
       </div>
 
-      <!-- زر أضف اشتراك (Add Subscription) -->
+      <!-- زر أضف اشتراك (Add Subscription) فقط بدون روابط VPN خارجية هنا -->
       <div style="width: 100%;">
-        <button id="happ-btn" style="width: 100%; background: #ffffff; color: #000000; border: none; border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <button id="happ-btn" style="width: 100%; background: #e50914; color: #ffffff; border: none; border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);">
           <div style="text-align: left;">
             <div style="font-family: 'Anton', sans-serif; font-size: 20px; letter-spacing: 1px;">ADD SUBSCRIPTION</div>
-            <div style="font-size: 10.5px; color: #555555; font-family: 'Inter', sans-serif; font-weight: 600;">opens your vpn app with your key ready</div>
+            <div style="font-size: 10.5px; color: #fca5a5; font-family: 'Inter', sans-serif; font-weight: 600;">opens your vpn app with your key ready</div>
           </div>
-          <div style="background: #e0e0e0; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; font-size: 18px; font-weight: bold;">+</div>
+          <div style="background: #b91c1c; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; font-size: 18px; font-weight: bold; color: #fff;">+</div>
         </button>
-      </div>
-
-      <!-- أزرار تحميل Happ VPN (جوجل بلاي وابل ستور) -->
-      <div style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
-        <a href="https://play.google.com/store/apps/details?id=com.happ.proxy" target="_blank" style="width: 100%; background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; color: #22c55e; text-decoration: none; font-size: 11px; font-weight: 700; box-sizing: border-box;">
-          <span>Happ VPN (Google Play)</span>
-          <span>↗</span>
-        </a>
-        <a href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" style="width: 100%; background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; color: #ffffff; text-decoration: none; font-size: 11px; font-weight: 700; box-sizing: border-box;">
-          <span>Happ VPN (App Store)</span>
-          <span>↗</span>
-        </a>
       </div>
     </div>
   `;
@@ -152,7 +140,7 @@ function renderFeaturesTab(me) {
     <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; max-height: 70vh; overflow-y: auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
         <span style="font-family: 'Anton', sans-serif; font-size: 32px; letter-spacing: 1px; color: #ffffff;">FEATURES</span>
-        <span style="font-family: 'Anton', sans-serif; font-size: 20px; color: #ffffff;">5/5</span>
+        <span style="font-family: 'Anton', sans-serif; font-size: 20px; color: #e50914;">3/3</span>
       </div>
       <p style="font-size: 11.5px; color: #71717a; margin-bottom: 10px;">changes apply from your next match</p>
 
@@ -164,8 +152,8 @@ function renderFeaturesTab(me) {
             <span style="font-family: 'Anton', sans-serif; font-size: 22px; letter-spacing: 1px; color: #ffffff;">MARKER</span>
             <span style="background: rgba(229,9,20,0.2); color: #e50914; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">RISK</span>
           </div>
-          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#ffffff' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${marker.enabled ? '#000000' : '#ffffff'}; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+          <button type="button" data-toggle="marker" style="width: 44px; height: 24px; border-radius: 12px; background: ${marker.enabled ? '#e50914' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${marker.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
         <p style="font-size: 11px; color: #71717a; margin-bottom: 12px;">marks every enemy on your screen.</p>
@@ -173,7 +161,7 @@ function renderFeaturesTab(me) {
         <div style="font-size: 10px; color: #52525b; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold;">MARK STYLE</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
           ${markerTypes.map(type => `
-            <button data-marker-type="${type}" style="border: 1px solid #1a1a1e; border-radius: 8px; padding: 8px 4px; font-size: 10px; font-weight: bold; cursor: pointer; background: ${marker.type === type ? '#ffffff' : '#141418'}; color: ${marker.type === type ? '#000000' : '#71717a'};">${type}</button>
+            <button data-marker-type="${type}" style="border: 1px solid #1a1a1e; border-radius: 8px; padding: 8px 4px; font-size: 10px; font-weight: bold; cursor: pointer; background: ${marker.type === type ? '#e50914' : '#141418'}; color: ${marker.type === type ? '#ffffff' : '#71717a'};">${type}</button>
           `).join('')}
         </div>
       </div>
@@ -186,8 +174,8 @@ function renderFeaturesTab(me) {
             <span style="font-family: 'Anton', sans-serif; font-size: 22px; letter-spacing: 1px; color: #ffffff;">AIMPOINT</span>
             <span style="background: #222226; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">NEW</span>
           </div>
-          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#ffffff' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${aimpoint.enabled ? '#000000' : '#ffffff'}; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+          <button type="button" data-toggle="aimpoint" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimpoint.enabled ? '#e50914' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimpoint.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
         <p style="font-size: 11px; color: #71717a;">moves your aim from the chest to the neck, so body shots land as headshots.</p>
@@ -200,8 +188,8 @@ function renderFeaturesTab(me) {
             <span style="font-size: 12px; color: #71717a; font-weight: bold;">03</span>
             <span style="font-family: 'Anton', sans-serif; font-size: 22px; letter-spacing: 1px; color: #ffffff;">AIM LAG</span>
           </div>
-          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#ffffff' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
-            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${aimLag.enabled ? '#000000' : '#ffffff'}; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
+          <button type="button" data-toggle="aimLag" style="width: 44px; height: 24px; border-radius: 12px; background: ${aimLag.enabled ? '#e50914' : '#1a1a1e'}; border: none; position: relative; cursor: pointer;">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: #ffffff; position: absolute; top: 3px; ${aimLag.enabled ? 'right: 3px;' : 'left: 3px;'}"></span>
           </button>
         </div>
         <p style="font-size: 11px; color: #71717a;">freezes the enemy for a moment while you fire or scope, so they're easier to hit.</p>
@@ -234,7 +222,7 @@ function renderManageTab() {
         </button>
       </div>
 
-      <!-- Links & Community -->
+      <!-- روابط Happ VPN والمجتمع تم نقلها هنا حصرياً -->
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <a href="${discordUrl}" target="_blank" style="background: #0c0c0e; border: 1px solid #1a1a1e; border-radius: 14px; padding: 14px 16px; color: #5865F2; font-size: 11.5px; font-weight: 700; text-decoration: none; display: flex; justify-content: space-between; align-items: center;">
           <span>Discord Community</span>
@@ -271,7 +259,7 @@ function renderBottomNav() {
     <div style="position: fixed; bottom: 16px; left: 0; right: 0; display: flex; justify-content: center; z-index: 50; pointer-events: none;">
       <div style="pointer-events: auto; background: rgba(12, 12, 14, 0.95); border: 1px solid #1a1a1e; border-radius: 20px; padding: 6px; display: flex; gap: 6px; backdrop-filter: blur(12px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
         ${tabs.map(item => `
-          <button data-nav-tab="${item.id}" style="width: 86px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 14px; padding: 8px 0; border: none; background: ${state.tab === item.id ? '#ffffff' : 'transparent'}; color: ${state.tab === item.id ? '#000000' : '#71717a'}; cursor: pointer; transition: 0.2s;">
+          <button data-nav-tab="${item.id}" style="width: 86px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 14px; padding: 8px 0; border: none; background: ${state.tab === item.id ? '#e50914' : 'transparent'}; color: ${state.tab === item.id ? '#ffffff' : '#71717a'}; cursor: pointer; transition: 0.2s;">
             ${item.icon}
             <span style="font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;">${item.label}</span>
           </button>
